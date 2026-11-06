@@ -60,3 +60,17 @@ scripts/             compliance check
 ---
 
 Pix isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+
+## Releases and updates
+
+Every push to `main` publishes a GitHub Release ("Pix build N", version `0.1.N`) with the
+installer, `pix.exe` and, when signed, `latest.json` for the in-app updater (Settings > Updates).
+
+Updates are signed with Pix's updater key. The key is **never** in this repo:
+
+- Original: `%USERPROFILE%\.tauri\pix.key` and `pix.key.password`
+- Backup: `D:\Backups\pix-signing-key\` (with a README)
+- CI: repo secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+If the key is lost, installed copies can't be updated again; everyone would have to reinstall a
+build signed with a new key. The public key is in `src-tauri/tauri.conf.json`.

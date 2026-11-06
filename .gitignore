@@ -5,3 +5,7 @@ src-tauri/gen/
 .DS_Store
 *.log
 .env
+
+# Updater signing key: never commit (see README, "Releases and updates")
+*.key
+*.key.password
