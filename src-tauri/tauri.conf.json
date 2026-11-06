@@ -71,5 +71,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQzOTU0MjIzMjFCNzcyQ0UKUldUT2NyY2hJMEtWUXoyTVJ3ZG1jbmN0bGxmbFVXSmhRdkt3MWswQTNGRTVHOTJtV1d0Q3c4QjMK",
+      "endpoints": [
+        "https://github.com/adeshkadambi/pix/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

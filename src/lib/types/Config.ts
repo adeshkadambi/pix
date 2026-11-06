@@ -18,4 +18,8 @@ tabpanel_offsets: { [key in string]?: [number, number] },
 /**
  * Where the HUD's running-timer list sits: its top-right corner, as a share of the screen.
  */
-hud_timers_pos: [number, number] | null, };
+hud_timers_pos: [number, number] | null, 
+/**
+ * Check GitHub Releases for a newer Pix at startup.
+ */
+check_updates: boolean, };

@@ -39,6 +39,19 @@ fn set_flag(app: AppHandle, state: State<'_, AppState>, flag: Flag, on: bool) ->
     Ok(next)
 }
 
+/// Turns the startup update check on or off.
+#[tauri::command]
+fn set_check_updates(app: AppHandle, state: State<'_, AppState>, on: bool) -> Result<Config, String> {
+    let mut config = state.config.lock().unwrap();
+    let mut next = config.clone();
+    next.check_updates = on;
+    next.save(&state.config_path).map_err(|e| format!("couldn't save settings: {e}"))?;
+    *config = next.clone();
+    drop(config);
+    events::emit_config_changed(&app, &next);
+    Ok(next)
+}
+
 #[tauri::command]
 fn get_client_status(state: State<'_, AppState>) -> ClientStatus {
     state.client.lock().unwrap().clone()
@@ -139,6 +152,8 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .register_asynchronous_uri_scheme_protocol(asset_protocol::SCHEME, |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -184,6 +199,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_config,
             set_flag,
+            set_check_updates,
             get_client_status,
             get_profile,
             refresh_profile,

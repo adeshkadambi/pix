@@ -1,7 +1,8 @@
-import { createEffect, createSignal, For, Match, on, onCleanup, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import { Logo } from "../../components/Logo";
 import { eventSignal, on as on_ } from "../../lib/events";
-import { getClientStatus } from "../../lib/ipc";
+import { getClientStatus, getConfig } from "../../lib/ipc";
+import { checkForUpdate, updateState } from "../../lib/updates";
 import type { Phase } from "../../lib/types/Phase";
 import { About } from "./About";
 import { Draft } from "./Draft";
@@ -45,6 +46,13 @@ export function Companion() {
     setReviewId(gameId);
     setView("review");
   };
+
+  // Startup update check (Settings → Updates can turn it off).
+  onMount(() => {
+    void getConfig().then((c) => {
+      if (c.check_updates) void checkForUpdate();
+    });
+  });
 
   // A new draft view (champ select) brings the Draft tab forward from Profile.
   const unlistenDraft = on_("draft", (d) => {
@@ -92,6 +100,11 @@ export function Companion() {
           </For>
         </nav>
         <div class="topbar-end">
+          <Show when={updateState().kind === "available"}>
+            <button type="button" class="update-pill" onClick={() => setView("settings")}>
+              Update available
+            </button>
+          </Show>
           <StatusPill status={status()} />
           <button
             type="button"

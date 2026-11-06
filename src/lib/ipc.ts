@@ -14,6 +14,9 @@ export const getConfig = () => invoke<Config>("get_config");
 
 export const setFlag = (flag: Flag, on: boolean) => invoke<Config>("set_flag", { flag, on });
 
+/** Turn the startup update check on or off. */
+export const setCheckUpdates = (on: boolean) => invoke<Config>("set_check_updates", { on });
+
 export const getClientStatus = () => invoke<ClientStatus>("get_client_status");
 
 /** The last fetched profile, or null if none yet. */

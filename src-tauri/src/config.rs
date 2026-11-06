@@ -53,6 +53,8 @@ pub struct Config {
     pub tabpanel_offsets: std::collections::BTreeMap<String, (i32, i32)>,
     /// Where the HUD's running-timer list sits: its top-right corner, as a share of the screen.
     pub hud_timers_pos: Option<(f32, f32)>,
+    /// Check GitHub Releases for a newer Pix at startup.
+    pub check_updates: bool,
 }
 
 impl Default for Config {
@@ -63,6 +65,7 @@ impl Default for Config {
             install_path: None,
             tabpanel_offsets: Default::default(),
             hud_timers_pos: None,
+            check_updates: true,
         }
     }
 }
@@ -114,6 +117,7 @@ mod tests {
         assert!(flags.overlay_timers);
         assert!(flags.overlay_gold);
         assert!(!flags.live_advisor, "the off-policy advisor is never on by default");
+        assert!(Config::default().check_updates, "update checks are on by default");
     }
 
     #[test]

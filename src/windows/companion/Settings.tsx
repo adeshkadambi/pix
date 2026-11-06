@@ -1,6 +1,8 @@
-import { createSignal, For, Show } from "solid-js";
+import { getVersion } from "@tauri-apps/api/app";
+import { createResource, createSignal, For, Match, Show, Switch } from "solid-js";
 import { eventSignal } from "../../lib/events";
-import { getConfig, setFlag, startCalibration } from "../../lib/ipc";
+import { getConfig, setCheckUpdates, setFlag, startCalibration } from "../../lib/ipc";
+import { checkForUpdate, installUpdate, updateState } from "../../lib/updates";
 import type { Flag } from "../../lib/types/Flag";
 
 // Only the live advisor carries a note: Riot's policy is stricter about in-game suggestions.
@@ -89,6 +91,63 @@ export function Settings() {
           </button>
         </div>
       </section>
+      <Updates checkOnStart={config()?.check_updates ?? true} />
     </div>
+  );
+}
+
+function Updates(props: { checkOnStart: boolean }) {
+  const [version] = createResource(getVersion);
+  const s = updateState;
+  return (
+    <section class="card stack">
+      <h2 class="card-title">Updates</h2>
+      <p class="muted">Pix {version() ? `v${version()}` : ""}. Updates come from Pix's GitHub releases and are signed.</p>
+      <label class="flag">
+        <div class="flag-text">
+          <span class="flag-name">Check for updates automatically</span>
+          <span class="muted small">When Pix starts. You choose when to install.</span>
+        </div>
+        <input
+          type="checkbox"
+          role="switch"
+          class="switch"
+          checked={props.checkOnStart}
+          onChange={(e) => void setCheckUpdates(e.currentTarget.checked)}
+        />
+      </label>
+      <div class="update-row">
+        <Switch>
+          <Match when={s().kind === "available" && s()}>
+            {(a) => (
+              <button type="button" class="btn btn--primary" onClick={() => void installUpdate()}>
+                Install v{(a() as { version: string }).version} and restart
+              </button>
+            )}
+          </Match>
+          <Match when={s().kind === "installing" && s()}>
+            {(i) => {
+              const p = () => (i() as { percent: number | null }).percent;
+              return <span class="muted">Installing… {p() != null ? `${p()}%` : ""}</span>;
+            }}
+          </Match>
+          <Match when={true}>
+            <button type="button" class="btn" disabled={s().kind === "checking"} onClick={() => void checkForUpdate()}>
+              {s().kind === "checking" ? "Checking…" : "Check for updates"}
+            </button>
+            <span class="muted small">
+              {s().kind === "none" ? "You're on the latest version." : ""}
+            </span>
+          </Match>
+        </Switch>
+      </div>
+      <Show when={s().kind === "error" && s()}>
+        {(e) => (
+          <p class="error small" role="alert">
+            Couldn't check for updates: {(e() as { message: string }).message}
+          </p>
+        )}
+      </Show>
+    </section>
   );
 }

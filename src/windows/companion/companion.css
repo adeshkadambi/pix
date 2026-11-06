@@ -198,3 +198,26 @@ kbd {
   opacity: 0.5;
   cursor: default;
 }
+
+/* Updates */
+.update-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.btn--primary {
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.update-pill {
+  padding: 5px 11px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 600 12px var(--font-body);
+  cursor: pointer;
+}
