@@ -245,6 +245,11 @@
 .lp--down {
   color: var(--bad-text);
 }
+.lp--unknown {
+  color: var(--text-muted);
+  font-weight: 500;
+  cursor: help;
+}
 .lp-arrow {
   font-size: 10px;
 }

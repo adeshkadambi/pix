@@ -11,6 +11,8 @@ import { Placeholder } from "./Placeholder";
 import "./profile.css";
 
 const FORM_GAMES = 8;
+/** Ranked Solo and Ranked Flex: the queues that earn LP. */
+const RANKED_QUEUES = [420, 440];
 
 /** Ticks every 30 s so "x min ago" labels stay current. */
 function useNow() {
@@ -133,8 +135,8 @@ function ProfileScreen(props: { profile: ProfileView; connected: boolean }) {
         <Show when={p().matches.length > 0} fallback={<p class="muted">No recent games.</p>}>
           <For each={p().matches}>{(m) => <MatchRow match={m} now={now()} />}</For>
           <p class="muted small-13 history-note">
-            LP changes show for ranked games played while Pix is open. Older games come from Pix's
-            local game log, kept on this PC.
+            LP changes show for ranked games played while Pix is open; "? LP" means Pix wasn't
+            tracking your rank then. Older games come from Pix's local game log, kept on this PC.
           </p>
         </Show>
       </section>
@@ -188,7 +190,21 @@ function MatchRow(props: { match: MatchSummary; now: number }) {
       <div class="match-meta">
         <span class="result-line">
           <span class={`result result--${m().result.toLowerCase()}`}>{m().result}</span>
-          <Show when={m().lp_change}>{(lp) => <LpBadge change={lp()} />}</Show>
+          <Show
+            when={m().lp_change}
+            fallback={
+              <Show when={RANKED_QUEUES.includes(m().queue_id) && m().result !== "Remake"}>
+                <span
+                  class="lp lp--unknown"
+                  title="LP change unknown: Pix wasn't tracking your rank around this game. Games played with Pix open get their LP change."
+                >
+                  ? LP
+                </span>
+              </Show>
+            }
+          >
+            {(lp) => <LpBadge change={lp()} />}
+          </Show>
         </span>
         <span class="muted small">{m().queue}</span>
         <span class="muted small">
