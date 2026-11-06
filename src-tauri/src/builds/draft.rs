@@ -15,7 +15,8 @@ use super::cache::{self, BuildCache};
 use super::comp_profile::{self, EnemyChampion, Pick};
 use super::opgg::OpggProvider;
 use super::role_inference::{self, InferredRole};
-use super::{BuildProvider, BuildSet, ChampionTraits, ProviderError, Ranked, Role, RunePage};
+use super::suggest::{self, Candidate};
+use super::{BuildProvider, BuildSet, ChampRecord, ChampionTraits, MetaEntry, ProviderError, Ranked, Role, RunePage};
 use crate::ddragon::DData;
 use crate::lcu::catalog::{Catalog, Icon};
 use crate::lcu::champ_select::{self, DraftState};
@@ -32,6 +33,8 @@ const TOP_OPTIONS: usize = 3;
 pub enum DraftStatus {
     /// Waiting for you to hover or lock a champion.
     NeedChampion,
+    /// Not locked yet: showing suggested picks.
+    Suggesting,
     /// Blind pick: choose your role.
     NeedRole,
     Loading,
@@ -136,6 +139,34 @@ pub struct BuildView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export)]
+pub struct SuggestionView {
+    pub champion: Icon,
+    /// Win rate and games behind the main score (vs your lane opponent, or in your role).
+    pub win_rate: f32,
+    pub games: u32,
+    pub vs_opponent: bool,
+    pub reasons: Vec<String>,
+    /// One of your recently played ranked champions.
+    pub yours: bool,
+    /// You're hovering this champion right now.
+    pub hovered: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+pub struct SuggestionsView {
+    pub role: Role,
+    /// Lane opponent the picks are scored against, when known.
+    pub opponent: Option<Icon>,
+    /// Your recently played champions that fit this draft, best first.
+    pub yours: Vec<SuggestionView>,
+    /// Best picks overall, best first.
+    pub top: Vec<SuggestionView>,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
 pub struct DraftView {
     pub status: DraftStatus,
     pub message: Option<String>,
@@ -147,6 +178,7 @@ pub struct DraftView {
     pub ally_bans: Vec<Icon>,
     pub enemy_bans: Vec<Icon>,
     pub build: Option<BuildView>,
+    pub suggestions: Option<SuggestionsView>,
 }
 
 // ---------- Runtime state ----------
@@ -189,6 +221,21 @@ impl BuildService {
     async fn traits(&self, patch: &str, champ: &str) -> Result<ChampionTraits, ProviderError> {
         let key = cache::key(&["traits", champ]);
         self.cache.get_or_fetch(self.provider.id(), patch, &key, || self.provider.traits(champ)).await
+    }
+
+    async fn lane_meta(&self, patch: &str, role: Role) -> Result<Vec<MetaEntry>, ProviderError> {
+        let key = cache::key(&["meta", role.opgg()]);
+        self.cache.get_or_fetch(self.provider.id(), patch, &key, || self.provider.lane_meta(role)).await
+    }
+
+    async fn counters_to(&self, patch: &str, enemy: &str, role: Role) -> Result<Vec<ChampRecord>, ProviderError> {
+        let key = cache::key(&["counters", enemy, role.opgg()]);
+        self.cache.get_or_fetch(self.provider.id(), patch, &key, || self.provider.counters_to(enemy, role)).await
+    }
+
+    async fn synergies(&self, patch: &str, ally: &str, ally_role: Role, partner: Role) -> Result<Vec<ChampRecord>, ProviderError> {
+        let key = cache::key(&["synergy", ally, ally_role.opgg(), "with", partner.opgg()]);
+        self.cache.get_or_fetch(self.provider.id(), patch, &key, || self.provider.synergies(ally, ally_role, partner)).await
     }
 }
 
@@ -318,6 +365,7 @@ fn teams_view(inputs: &Inputs, catalog: &Catalog) -> DraftView {
         ally_bans: inputs.draft.ally_bans.iter().map(|id| catalog.champion(*id)).collect(),
         enemy_bans: inputs.draft.enemy_bans.iter().map(|id| catalog.champion(*id)).collect(),
         build: None,
+        suggestions: None,
     }
 }
 
@@ -363,14 +411,8 @@ async fn compute(app: &AppHandle, inputs: &Inputs, catalog: &Catalog, dd: &DData
     }
 
     let Some(me) = inputs.draft.me() else { return with_status(view, DraftStatus::NeedChampion, None) };
-    if me.champion_id <= 0 {
-        return with_status(view, DraftStatus::NeedChampion, Some("Hover or lock a champion to see builds."));
-    }
     let Some(role) = view.my_role else {
         return with_status(view, DraftStatus::NeedRole, Some("Blind pick: choose your role."));
-    };
-    let Some(my_key) = opgg_key(dd, me.champion_id) else {
-        return with_status(view, DraftStatus::Error, Some("Unknown champion."));
     };
 
     // Lane opponent: the enemy inferred (or set) to your role.
@@ -378,6 +420,15 @@ async fn compute(app: &AppHandle, inputs: &Inputs, catalog: &Catalog, dd: &DData
     if let Some((i, _, _)) = opponent {
         view.enemies[*i].lane_opponent = true;
     }
+
+    // Before you lock: suggested picks. After: builds for your champion.
+    if !me.locked {
+        view.suggestions = Some(suggestions(app, inputs, catalog, dd, role, opponent, me.champion_id).await);
+        return with_status(view, DraftStatus::Suggesting, None);
+    }
+    let Some(my_key) = opgg_key(dd, me.champion_id) else {
+        return with_status(view, DraftStatus::Error, Some("Unknown champion."));
+    };
 
     let base = match service.base(patch, &my_key, role).await {
         Ok(b) => b,
@@ -445,6 +496,135 @@ async fn compute(app: &AppHandle, inputs: &Inputs, catalog: &Catalog, dd: &DData
         opgg_url,
     });
     with_status(view, DraftStatus::Ready, None)
+}
+
+/// Letters and digits only, lowercased: matches OP.GG names ("Nunu & Willump") to Data Dragon's.
+fn name_key(name: &str) -> String {
+    name.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
+}
+
+const TOP_SUGGESTIONS: usize = 5;
+const YOUR_SUGGESTIONS: usize = 3;
+
+/// Suggested picks for your role (SPEC §5.13).
+async fn suggestions(
+    app: &AppHandle,
+    inputs: &Inputs,
+    catalog: &Catalog,
+    dd: &DData,
+    role: Role,
+    opponent: Option<&(usize, i32, String)>,
+    hovered: i32,
+) -> SuggestionsView {
+    let state = app.state::<AppState>();
+    let service: &BuildService = &state.builds;
+    let patch = inputs.patch.as_str();
+
+    // Teammates already locked in, for synergy and team gaps.
+    let mates: Vec<(i32, Role)> = inputs
+        .draft
+        .allies
+        .iter()
+        .filter(|s| !s.is_me && s.locked && s.champion_id > 0)
+        .filter_map(|s| Some((s.champion_id, s.role?)))
+        .collect();
+
+    let meta = service.lane_meta(patch, role);
+    let counters = async {
+        match opponent {
+            Some((_, _, key)) => service.counters_to(patch, key, role).await.map(Some),
+            None => Ok(None),
+        }
+    };
+    let synergies = join_all(mates.iter().filter_map(|(champ, mate_role)| {
+        let key = opgg_key(dd, *champ)?;
+        Some(async move { (*champ, service.synergies(patch, &key, *mate_role, role).await) })
+    }));
+    let pickable = async {
+        let http = state.lcu_http()?;
+        let ids: Vec<i32> = http.get_json("/lol-champ-select/v1/pickable-champion-ids").await.ok()?;
+        (!ids.is_empty()).then(|| ids.into_iter().collect::<std::collections::HashSet<i32>>())
+    };
+    let (meta, counters, synergies, pickable) = tokio::join!(meta, counters, synergies, pickable);
+    let mut note = None;
+    let meta = meta.unwrap_or_else(|e| {
+        tracing::warn!("lane meta unavailable: {e}");
+        Vec::new()
+    });
+    let counters = counters.unwrap_or_else(|e| {
+        tracing::warn!("counters unavailable: {e}");
+        note = Some("Matchup data didn't load, so picks are ranked by role strength.".to_owned());
+        None
+    });
+
+    let by_name: HashMap<String, i32> = dd.champions.iter().map(|(id, c)| (name_key(&c.name), *id)).collect();
+    let mut cands: HashMap<i32, Candidate> = HashMap::new();
+    let entry = |cands: &mut HashMap<i32, Candidate>, id: i32| -> Option<()> {
+        let c = dd.champions.get(&id)?;
+        cands.entry(id).or_insert_with(|| Candidate { champion_id: id, name: c.name.clone(), tags: c.tags.clone(), ..Default::default() });
+        Some(())
+    };
+    // At least 15% of the champion's games in this role (10% let in niche picks like jungle Fizz).
+    for m in meta.iter().filter(|m| !m.rip && m.role_rate >= 0.15) {
+        if let Some(&id) = by_name.get(&name_key(&m.name))
+            && entry(&mut cands, id).is_some()
+        {
+            cands.get_mut(&id).unwrap().meta = Some((m.play, m.win));
+        }
+    }
+    for c in counters.iter().flatten() {
+        if entry(&mut cands, c.champion_id).is_some() {
+            cands.get_mut(&c.champion_id).unwrap().vs_opponent = Some((c.play, c.win));
+        }
+    }
+    for (mate, records) in &synergies {
+        let Ok(records) = records else { continue };
+        let mate_name = dd.champions.get(mate).map(|c| c.name.clone()).unwrap_or_default();
+        for r in records {
+            if entry(&mut cands, r.champion_id).is_some() {
+                cands.get_mut(&r.champion_id).unwrap().synergies.push((mate_name.clone(), r.play, r.win));
+            }
+        }
+    }
+    if let Some(profile) = state.profile.lock().unwrap().as_ref() {
+        for c in &profile.champions {
+            if let Some(cand) = cands.get_mut(&c.champion.id) {
+                cand.mine = Some((c.games, c.wins));
+            }
+        }
+    }
+
+    // Banned, already picked, or not available to you.
+    let d = &inputs.draft;
+    let mut taken: std::collections::HashSet<i32> = d.ally_bans.iter().chain(&d.enemy_bans).copied().collect();
+    taken.extend(d.allies.iter().filter(|s| !s.is_me && s.locked).map(|s| s.champion_id));
+    taken.extend(d.enemies.iter().map(|s| s.champion_id));
+    // Only real picks for this role: matchup lists include off-role games (e.g. jungle Fizz).
+    cands.retain(|id, c| c.meta.is_some() && !taken.contains(id) && pickable.as_ref().is_none_or(|p| p.contains(id)));
+
+    let mate_tags: Vec<Vec<String>> = mates.iter().filter_map(|(c, _)| dd.champions.get(c).map(|i| i.tags.clone())).collect();
+    let opponent_name = opponent.and_then(|(_, champ, _)| dd.champions.get(champ)).map(|c| c.name.clone());
+    let ranked = suggest::rank(cands.into_values().collect(), opponent_name.as_deref(), role.opgg(), suggest::team_gaps(&mate_tags));
+    if opponent.is_none() && note.is_none() {
+        note = Some("Your lane opponent isn't picked yet, so these are the strongest picks for your role right now.".to_owned());
+    }
+
+    let to_view = |s: &suggest::Suggestion| SuggestionView {
+        champion: catalog.champion(s.champion_id),
+        win_rate: s.win_rate,
+        games: s.games,
+        vs_opponent: s.vs_opponent,
+        reasons: s.reasons.clone(),
+        yours: s.mine.is_some(),
+        hovered: s.champion_id == hovered,
+    };
+    SuggestionsView {
+        role,
+        opponent: opponent.map(|(_, champ, _)| catalog.champion(*champ)),
+        yours: ranked.iter().filter(|s| s.mine.is_some()).take(YOUR_SUGGESTIONS).map(to_view).collect(),
+        top: ranked.iter().filter(|s| s.mine.is_none()).take(TOP_SUGGESTIONS).map(to_view).collect(),
+        note,
+    }
 }
 
 fn emit(app: &AppHandle, generation: u64, view: DraftView) {

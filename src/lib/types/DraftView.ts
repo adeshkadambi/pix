@@ -5,9 +5,10 @@ import type { DraftStatus } from "./DraftStatus";
 import type { EnemyView } from "./EnemyView";
 import type { Icon } from "./Icon";
 import type { Role } from "./Role";
+import type { SuggestionsView } from "./SuggestionsView";
 
 export type DraftView = { status: DraftStatus, message: string | null, my_role: Role | null, 
 /**
  * False in blind pick, where the user chooses the role.
  */
-role_from_client: boolean, allies: Array<AllyView>, enemies: Array<EnemyView>, ally_bans: Array<Icon>, enemy_bans: Array<Icon>, build: BuildView | null, };
+role_from_client: boolean, allies: Array<AllyView>, enemies: Array<EnemyView>, ally_bans: Array<Icon>, enemy_bans: Array<Icon>, build: BuildView | null, suggestions: SuggestionsView | null, };

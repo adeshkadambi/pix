@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::builds::ranking::rank;
-use crate::builds::{BuildSet, ChampionTraits, DamageType, Ranked, Role, RunePage};
+use crate::builds::{BuildSet, ChampRecord, ChampionTraits, DamageType, MetaEntry, Ranked, Role, RunePage};
 
 fn u32_of(v: &Value, key: &str) -> u32 {
     v.get(key).and_then(Value::as_u64).unwrap_or(0) as u32
@@ -179,6 +179,55 @@ pub fn matchup_to_buildset(v: &Value) -> BuildSet {
     }
 }
 
+/// `lol_list_lane_meta_champions` → the role's tier list.
+pub fn meta_entries(v: &Value, role: Role) -> Vec<MetaEntry> {
+    entries(v.pointer(&format!("/data/positions/{}", role.opgg())))
+        .into_iter()
+        .filter_map(|e| {
+            Some(MetaEntry {
+                name: e.get("champion")?.as_str()?.to_owned(),
+                play: u32_of(e, "play"),
+                win: u32_of(e, "win"),
+                role_rate: f32_of(e.get("role_rate")).unwrap_or(0.0),
+                tier: u32_of(e, "tier") as u8,
+                rip: e.get("is_rip").and_then(Value::as_bool).unwrap_or(false),
+            })
+        })
+        .collect()
+}
+
+/// A matchup reply asked *as the enemy* lists the enemy's record against every lane opponent
+/// (`counters[]`, wins on the enemy's side). Flipped, it's each challenger's record vs the enemy.
+pub fn counters_to_enemy(v: &Value) -> Vec<ChampRecord> {
+    entries(v.pointer("/data/counters"))
+        .into_iter()
+        .filter_map(|c| {
+            let (play, enemy_wins) = (u32_of(c, "play"), u32_of(c, "win"));
+            Some(ChampRecord {
+                champion_id: c.get("champion_id")?.as_i64()? as i32,
+                name: c.get("champion_name")?.as_str()?.to_owned(),
+                play,
+                win: play.saturating_sub(enemy_wins),
+            })
+        })
+        .collect()
+}
+
+/// `data.synergies.<role>[]` → partners and their record together.
+pub fn synergy_records(v: &Value, partner_role: Role) -> Vec<ChampRecord> {
+    entries(v.pointer(&format!("/data/synergies/{}", partner_role.opgg())))
+        .into_iter()
+        .filter_map(|s| {
+            Some(ChampRecord {
+                champion_id: s.get("synergy_champion_id")?.as_i64()? as i32,
+                name: s.get("synergy_champion_name")?.as_str()?.to_owned(),
+                play: u32_of(s, "play"),
+                win: u32_of(s, "win"),
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,6 +290,34 @@ mod tests {
         let t = analysis_to_traits(&notation::parse(text).unwrap());
         assert_eq!(t.role_rates, vec![(Role::Adc, 1.0)]);
         assert_eq!(t.damage_type, Some(DamageType::AD));
+    }
+
+    #[test]
+    fn jungle_meta_list() {
+        let meta = meta_entries(&notation::parse(&fixture("meta_jungle.raw")).unwrap(), Role::Jungle);
+        assert!(meta.len() > 20);
+        let wukong = &meta[0];
+        assert_eq!((wukong.name.as_str(), wukong.play, wukong.win, wukong.tier, wukong.rip), ("Wukong", 18770, 9626, 1, false));
+        assert!((wukong.role_rate - 0.85).abs() < 1e-6);
+        assert!(meta.iter().any(|m| m.name == "Cho'Gath"));
+    }
+
+    #[test]
+    fn counters_to_nocturne_are_flipped_to_the_challenger() {
+        let v: Value = serde_json::from_str(&fixture("matchup_nocturne_self_jungle.raw")).unwrap();
+        let counters = counters_to_enemy(&v);
+        assert!(counters.len() > 50);
+        let nunu = counters.iter().find(|c| c.name == "Nunu & Willump").unwrap();
+        // Nocturne won 47 of 116, so Nunu won 69.
+        assert_eq!((nunu.champion_id, nunu.play, nunu.win), (20, 116, 69));
+    }
+
+    #[test]
+    fn ahri_jungle_synergies() {
+        let s = synergy_records(&notation::parse(&fixture("synergy_ahri_mid_jungle.raw")).unwrap(), Role::Jungle);
+        assert_eq!(s[0], ChampRecord { champion_id: 62, name: "Wukong".into(), play: 174, win: 94 });
+        assert_eq!(s.len(), 3);
+        assert!(synergy_records(&Value::Null, Role::Top).is_empty());
     }
 
     #[test]

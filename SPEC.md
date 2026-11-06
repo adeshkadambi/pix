@@ -248,6 +248,21 @@ Riot's APIs have no LP-per-game data, and the client's history is short. Pix run
 - **Client LP notification:** `/lol-ranked/v1/current-lp-change-notification` (GET) exists. Its contents after a ranked game are logged, so it can replace or confirm the snapshot method once its shape is known.
 - **Later option (needs a server):** fill in older matches from Riot's match-v5 API with a registered product key, using a hosted function (e.g. Supabase) if friends need it. Match-v5 has no LP either.
 
+### 5.13 Suggested picks (before you lock)
+In champ select, the Draft screen shows suggested picks until you lock in, then switches to runes and builds.
+- **Candidates** for your role:
+  - OP.GG's lane tier list (`lol_list_lane_meta_champions`, role rate ≥ 15%, not marked unplayable).
+  - Your lane opponent's counters.
+  - Your recent ranked champions from the profile.
+  - Every candidate must be in the role's tier list, which drops off-role samples. Banned, already picked and unavailable champions are removed (`/lol-champ-select/v1/pickable-champion-ids`, GET).
+- **Counters:** `weak_counters[]` and per-position counters return only 3 entries. So Pix calls `lol_get_lane_matchup_guide` *as the enemy laner, against itself*. Its `counters[]` lists the enemy's record against about 55 lane opponents, flipped to each challenger's side. That's one cached call per enemy laner.
+- **Score** (pure functions in `builds/suggest.rs`):
+  - Main score: smoothed win rate vs the lane opponent (30+ games), else smoothed win rate in the role (100+ games).
+  - Plus half the smoothed lift from OP.GG synergies with locked teammates (`synergies.<role>[]`; top lists only, no top-lane lists).
+  - Plus +1% for filling a team gap (no AP, or no frontline, once 2+ teammates have locked).
+  - Plus +0.5% for champions you've played recently.
+- **Display:** "Your champions" (up to 3) first, then "Top picks" (up to 5), each with win rate, game count and the reasons behind its rank. When the lane opponent isn't known yet, the card says the picks are ranked by role strength.
+
 ### 5.11 TAB watch and foreground
 - `tab_watch.rs` runs at about 60 Hz on a dedicated thread.
 - `fg = GetForegroundWindow()`, and the window class is `RiotWindowClass` (from `GetClassNameW`; no process handle is opened).
@@ -281,6 +296,7 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
 - **M1 League client connection and assets:** discovery, lockfile, pinned TLS, GET client, WebSocket, gameflow, map gate, `lcu-asset`, Data Dragon cache. Companion shows connection status and phase. **Profile view** (native: summoner, ranked stats, match history).
 - **M1.5 Game log:** SQLite game log, ranked snapshots, LP change per game on the Profile screen (5.12).
 - **M2 Comp-aware builds:** champ-select parsing, OP.GG MCP client and notation parser, role inference, ranking, comp profile, cache, Draft view.
+- **M2.5 Suggested picks:** ranked champion suggestions before you lock in (5.13).
 - **M3 In-game shell:** live poller, companion in-game view (pre-game build, threat card, purchase feed), `hud`/`tabpanel` window styles, TAB watch, calibration, fullscreen warning.
 - **M4 Overlay features (gray, off by default):** gold diff, summoner timers with haste and Cosmic toggle.
 - **M5 Live advisor (off-policy, off by default) and post-game review.**

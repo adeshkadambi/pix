@@ -11,6 +11,8 @@ import type { Icon } from "../../lib/types/Icon";
 import type { IconOption } from "../../lib/types/IconOption";
 import type { Role } from "../../lib/types/Role";
 import type { RunePageView } from "../../lib/types/RunePageView";
+import type { SuggestionsView } from "../../lib/types/SuggestionsView";
+import type { SuggestionView } from "../../lib/types/SuggestionView";
 import { Placeholder } from "./Placeholder";
 import "./draft.css";
 
@@ -143,6 +145,7 @@ function BuildPanel(props: { draft: DraftView }) {
     <section class="card build" aria-label="Builds">
       <Switch>
         <Match when={d().status === "Ready" && d().build}>{(b) => <BuildDetails build={b()} />}</Match>
+        <Match when={d().status === "Suggesting" && d().suggestions}>{(s) => <Suggestions view={s()} />}</Match>
         <Match when={d().status === "NeedRole"}>
           <div class="stack">
             <h1 class="build-title">Choose your role</h1>
@@ -168,6 +171,60 @@ function BuildPanel(props: { draft: DraftView }) {
         </Match>
       </Switch>
     </section>
+  );
+}
+
+function Suggestions(props: { view: SuggestionsView }) {
+  const v = () => props.view;
+  return (
+    <div class="build-body">
+      <div class="build-head-text">
+        <span class="eyebrow eyebrow--accent">Suggested picks</span>
+        <h1 class="build-title">
+          {ROLE_LABEL[v().role]}
+          <Show when={v().opponent}>{(o) => <span class="muted"> into {o().name}</span>}</Show>
+        </h1>
+        <span class="muted small-13">
+          {v().note ?? "Ranked by win rate against your lane opponent, plus synergy with your team and what it's missing."} Lock in to see
+          runes and builds.
+        </span>
+      </div>
+      <Show when={v().yours.length > 0}>
+        <div class="why">
+          <h3 class="panel-title">Your champions</h3>
+          <div class="suggestions">
+            <For each={v().yours}>{(s) => <SuggestionCard s={s} />}</For>
+          </div>
+        </div>
+      </Show>
+      <div class="why">
+        <h3 class="panel-title">Top picks</h3>
+        <Show when={v().top.length > 0} fallback={<p class="muted">No pick data for this role yet.</p>}>
+          <div class="suggestions">
+            <For each={v().top}>{(s) => <SuggestionCard s={s} />}</For>
+          </div>
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+function SuggestionCard(props: { s: SuggestionView }) {
+  const s = () => props.s;
+  return (
+    <div class={`suggestion ${s().hovered ? "suggestion--hovered" : ""}`}>
+      <AssetIcon path={s().champion.icon} name={s().champion.name} class="pick-icon" decorative />
+      <div class="why-text">
+        <span class="suggestion-head">
+          <span class="strong">{s().champion.name}</span>
+          <span class="suggestion-wr">{(s().win_rate * 100).toFixed(1)}%</span>
+          <Show when={s().hovered}>
+            <span class="tag">Hovering</span>
+          </Show>
+        </span>
+        <span class="muted small">{s().reasons.join(" · ")}</span>
+      </div>
+    </div>
   );
 }
 

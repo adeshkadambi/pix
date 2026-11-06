@@ -7,6 +7,7 @@ pub mod draft;
 pub mod opgg;
 pub mod ranking;
 pub mod role_inference;
+pub mod suggest;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -121,6 +122,31 @@ pub struct ChampionTraits {
     pub damage_type: Option<DamageType>,
 }
 
+/// A champion's record in some context (vs an opponent, next to an ally), counted from that
+/// champion's side.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChampRecord {
+    pub champion_id: i32,
+    pub name: String,
+    pub play: u32,
+    pub win: u32,
+}
+
+/// A champion's standing in one role (the lane tier list).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MetaEntry {
+    /// Display name, e.g. "Nunu & Willump".
+    pub name: String,
+    pub play: u32,
+    pub win: u32,
+    /// Share of this champion's games played in this role.
+    pub role_rate: f32,
+    /// 1 = OP … 5 = weak.
+    pub tier: u8,
+    /// OP.GG marks the champion unplayable in this role.
+    pub rip: bool,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderError {
     #[error("network error: {0}")]
@@ -140,4 +166,10 @@ pub trait BuildProvider: Send + Sync {
     /// Builds for `champion` in `role` against a lane `opponent` in the same role.
     async fn matchup(&self, champion: &str, role: Role, opponent: &str) -> Result<BuildSet, ProviderError>;
     async fn traits(&self, champion: &str) -> Result<ChampionTraits, ProviderError>;
+    /// Every champion's standing in `role`.
+    async fn lane_meta(&self, role: Role) -> Result<Vec<MetaEntry>, ProviderError>;
+    /// Every champion's record against `enemy` in `role`, from the challenger's side.
+    async fn counters_to(&self, enemy: &str, role: Role) -> Result<Vec<ChampRecord>, ProviderError>;
+    /// The best partners in `partner_role` for `ally` playing `ally_role` (only the top few).
+    async fn synergies(&self, ally: &str, ally_role: Role, partner_role: Role) -> Result<Vec<ChampRecord>, ProviderError>;
 }

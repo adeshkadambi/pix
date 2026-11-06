@@ -6,7 +6,7 @@ pub mod notation;
 
 use serde_json::{Value, json};
 
-use super::{BuildProvider, BuildSet, ChampionTraits, ProviderError, Role};
+use super::{BuildProvider, BuildSet, ChampRecord, ChampionTraits, MetaEntry, ProviderError, Role};
 use client::McpClient;
 
 const BASE_FIELDS: &[&str] = &[
@@ -74,5 +74,40 @@ impl BuildProvider for OpggProvider {
     async fn traits(&self, champion: &str) -> Result<ChampionTraits, ProviderError> {
         // Role rates come back for every position, whichever one is asked for.
         Ok(mapping::analysis_to_traits(&self.analysis(champion, Role::Mid, TRAIT_FIELDS).await?))
+    }
+
+    async fn lane_meta(&self, role: Role) -> Result<Vec<MetaEntry>, ProviderError> {
+        let field = format!("data.positions.{}[].{{champion,play,win,role_rate,tier,is_rip}}", role.opgg());
+        let text = self
+            .client
+            .call_tool("lol_list_lane_meta_champions", json!({"position": role.opgg(), "desired_output_fields": [field]}))
+            .await?;
+        let v = notation::parse(&text).map_err(|e| ProviderError::Format(e.to_string()))?;
+        Ok(mapping::meta_entries(&v, role))
+    }
+
+    async fn counters_to(&self, enemy: &str, role: Role) -> Result<Vec<ChampRecord>, ProviderError> {
+        // Asked as the enemy (against itself), the reply lists its record vs every lane opponent.
+        let text = self
+            .client
+            .call_tool(
+                "lol_get_lane_matchup_guide",
+                json!({"my_champion": enemy, "opponent_champion": enemy, "position": role.opgg()}),
+            )
+            .await?;
+        let v: Value = serde_json::from_str(&text).map_err(|e| ProviderError::Format(e.to_string()))?;
+        Ok(mapping::counters_to_enemy(&v))
+    }
+
+    async fn synergies(&self, ally: &str, ally_role: Role, partner_role: Role) -> Result<Vec<ChampRecord>, ProviderError> {
+        if partner_role == Role::Top {
+            return Ok(Vec::new()); // OP.GG has no top-lane synergy lists
+        }
+        let field = format!(
+            "data.synergies.{}[].{{synergy_champion_id,synergy_champion_name,play,win}}",
+            partner_role.opgg()
+        );
+        let v = self.analysis(ally, ally_role, &[field.as_str()]).await?;
+        Ok(mapping::synergy_records(&v, partner_role))
     }
 }
