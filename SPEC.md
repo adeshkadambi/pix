@@ -3,14 +3,19 @@
 > This is the only valid spec for the project. Ignore the earlier draft completely; the end of this document lists the assumptions from it that turned out wrong. In M0 this file is committed as `SPEC.md`.
 
 ## 1. Context and goals
-Pix is a **personal, Windows-only** League of Legends companion and overlay built with **Tauri v2 + Rust**. It gives one player (the author) what u.gg doesn't:
+Pix is a **Windows-only** League of Legends companion and overlay built with **Tauri v2 + Rust**, made for the author and a small group of friends. Each person runs their own copy against their own account. It gives them what u.gg doesn't:
 - **Default (idle) view:** the logged-in account's own **profile, ranked stats and match history**, shown natively from League client data.
 - **Champion select:** builds ranked by win rate **against the enemy team comp**.
 - **In-game overlay:** **gold diff** and **summoner spell timers** (clickable while TAB is held).
 - **In-game companion window (second monitor):** the pre-game build, a threat card, an enemy purchase feed, and an optional **live item advisor**.
 - **Post-game:** a review of who killed you and what would have countered them.
 
-Non-goals: public distribution, macOS/Linux builds, automating anything.
+Non-goals: public distribution (store listings, ads, accounts), macOS/Linux builds, automating anything.
+
+Audience rules (because friends use it too):
+- Nothing is hardcoded to the author's account, region or install path. Everything comes from the running client or from config.
+- All user data stays on each user's machine (section 5.12). There is no Pix server and nothing is uploaded.
+- Friends get the `.exe` from CI artifacts or GitHub releases. Flags default to off for everyone. Each user turns on gray or off-policy features themselves, after seeing the risk label.
 
 Environment: development, running and testing happen on the author's Windows PC (Rust 1.99, Node 26) in `C:\Users\adesh\Documents\pix`. The code is pushed to the GitHub repo `adeshkadambi/pix`. Windows CI builds an `.exe`.
 
@@ -38,7 +43,7 @@ Sources: developer.riotgames.com/docs/lol (Game Integrity, Game Policy), develop
 | Summoner timers (overlay), gold diff (overlay) | Gray (not named in policy) | **Off** until Riot approves |
 | Live item advisor (companion) | **Off-policy** ("drawing conclusions for you during gameplay"). The author accepted the risk | **Off**, labeled "Not Riot-compliant, use at own risk" |
 
-Registration: the author registers the product on the Riot Developer Portal, discloses that it uses the League client API and the Live Client API, and describes the gray features. Gray flags flip only on approval.
+Registration: other people use Pix, so it is a product, not a personal tool. The author registers it on the Riot Developer Portal, discloses that it uses the League client API and the Live Client API, and describes the gray features. Gray flags flip only on approval. Riot personal API keys only cover their owner, so any future Riot web API use for friends (such as filling in older matches) needs a registered product key kept on a server, never inside the app.
 
 CI guard: the build fails if the source contains `OpenProcess|ReadProcessMemory|WriteProcessMemory|SetWindowsHookEx|SendInput|keybd_event|mouse_event|RegisterHotKey|CreateRemoteThread`, or if `lcu/http.rs` issues anything other than GET.
 
@@ -85,6 +90,7 @@ src-tauri/src/
   overlay/win32.rs, tab_watch.rs, foreground.rs
   asset_protocol.rs
   profile.rs        own summoner, ranked stats, match history → ProfileView
+  db.rs             SQLite game log, ranked snapshots, LP changes (5.12)
 ```
 
 ### 5.1 Finding the League client and connecting
@@ -212,12 +218,29 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 A native screen (`design/Main.dc.html`), built only from your own account's League client data.
 - **Who:** GET `/lol-summoner/v1/current-summoner` → `gameName`, `tagLine`, `summonerLevel`, `profileIconId`. GET `/riotclient/region-locale` → `region`.
 - **Ranked:** GET `/lol-ranked/v1/current-ranked-stats` → Solo/Duo and Flex tier, division, LP, wins, losses.
-- **Match history:** GET `/lol-match-history/v1/products/lol/current-summoner/matches` → per game: champion, queue, result, K/D/A, CS, duration, items, summoner spells. Ranked champion stats (games, win rate, KDA) are computed from the same history.
+- **Match history:** GET `/lol-match-history/v1/products/lol/current-summoner/matches` → per game: champion, queue, result, K/D/A, CS, duration, items, summoner spells. The client only keeps a short recent list, so every fetched game is saved to the local game log (5.12). The screen shows the stored history, newest first, with each game's LP change when known. Ranked champion stats (games, win rate, KDA) are computed from the stored ranked games.
 - **Labels:** the source is shown as "from League client".
 - **Phase behavior:**
   - The companion shows Profile when the phase is `None`, `Lobby`, `Matchmaking` or `ReadyCheck`, and switches tabs as the phase changes (Draft, Live, Review). A tab the user picks by hand stays until the phase changes again.
   - Before the client connects (no account yet), the profile shows a "Waiting for League client" placeholder.
-- **Later option:** embed the OP.GG profile page (child webview with no IPC capabilities, plus a navigation guard that keeps it on `op.gg`), or use OP.GG `lol_list_summoner_matches` for extra stats.
+- **Later option:** embed the OP.GG profile page (child webview with no IPC capabilities, plus a navigation guard that keeps it on `op.gg`). OP.GG `lol_list_summoner_matches` returns at most 20 games, so it can't fill in older history.
+
+### 5.12 Local game log and LP tracking
+Riot's APIs have no LP-per-game data, and the client's history is short. Pix runs while the user plays, so it keeps its own log.
+- **Storage:** SQLite (`rusqlite`, bundled) at `app_data_dir/pix.db`, one file per Windows user. Every row is keyed by the account's `puuid`, so several accounts on one PC stay separate. It holds only the user's own games and ranks (compliance rule 5). Schema versions are tracked with `PRAGMA user_version`.
+- **Tables:**
+  - `games(puuid, game_id, created_ms, queue_id, duration_secs, data JSON)`: one row per game seen in client history, upserted on every fetch.
+  - `ranked_snapshots(puuid, queue_type, taken_ms, tier, division, lp, wins, losses)`: written when the rank state differs from the latest stored snapshot.
+  - `lp_changes(puuid, game_id, queue_type, delta, tier/division/lp before and after)`.
+- **When snapshots are taken:** on every profile fetch (on connect, after each game, on Refresh) and when champ select starts.
+- **Crediting an LP change to a game** (ranked solo = queue 420 → `RANKED_SOLO_5x5`, flex = 440 → `RANKED_FLEX_SR`):
+  - *before* = the latest snapshot taken before the game started.
+  - *after* = the earliest snapshot taken after the game ended whose wins + losses is exactly one more than *before*.
+  - The result must match: a win must raise wins, a loss must raise losses. And no other stored game in that queue may fall between the two snapshots.
+  - `delta` is the change on a single LP ladder (each division is 100 LP, Iron IV = 0; Master and above share one LP pool from 2800), so promotions and demotions come out right.
+  - Anything ambiguous gets no LP rather than a guess. Games from before tracking began have no LP.
+- **Client LP notification:** `/lol-ranked/v1/current-lp-change-notification` (GET) exists. Its contents after a ranked game are logged, so it can replace or confirm the snapshot method once its shape is known.
+- **Later option (needs a server):** fill in older matches from Riot's match-v5 API with a registered product key, using a hosted function (e.g. Supabase) if friends need it. Match-v5 has no LP either.
 
 ### 5.11 TAB watch and foreground
 - `tab_watch.rs` runs at about 60 Hz on a dedicated thread.
@@ -250,6 +273,7 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
 ## 8. Milestones (each ends working and pushed)
 - **M0 Scaffold:** `git init`, Tauri v2 + Vite + SolidJS, three windows, config and flags, About page, `SPEC.md` (this file), Windows CI (`cargo test`, compliance grep, `tauri build` artifact). Create a private GitHub repo with `gh` (confirm with the author before pushing).
 - **M1 League client connection and assets:** discovery, lockfile, pinned TLS, GET client, WebSocket, gameflow, map gate, `lcu-asset`, Data Dragon cache. Companion shows connection status and phase. **Profile view** (native: summoner, ranked stats, match history).
+- **M1.5 Game log:** SQLite game log, ranked snapshots, LP change per game on the Profile screen (5.12).
 - **M2 Comp-aware builds:** champ-select parsing, OP.GG MCP client and notation parser, role inference, ranking, comp profile, cache, Draft view.
 - **M3 In-game shell:** live poller, companion in-game view (pre-game build, threat card, purchase feed), `hud`/`tabpanel` window styles, TAB watch, calibration, fullscreen warning.
 - **M4 Overlay features (gray, off by default):** gold diff, summoner timers with haste and Cosmic toggle.

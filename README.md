@@ -1,6 +1,6 @@
 # Pix
 
-Personal, Windows-only League of Legends companion and overlay (Tauri v2 + Rust).
+Windows-only League of Legends companion and overlay (Tauri v2 + Rust) for me and a few friends. Each person runs their own copy; all data stays on their PC.
 
 - Own profile and match history when idle
 - Champion select builds ranked by win rate against the enemy team comp

@@ -116,9 +116,24 @@ async fn on_phase_change(app: &AppHandle, http: &LcuHttp, old: Option<Phase>, ne
     };
     update_client_status(app, |s| s.summoners_rift = rift);
 
+    // Game log (SPEC §5.12): a rank snapshot before the game, and the LP notification after it.
+    if new == Phase::ChampSelect {
+        profile::snapshot_soon(app);
+    }
+    if new == Phase::EndOfGame {
+        profile::log_lp_notification(app);
+    }
     // A finished game shows up in match history once you're back in the lobby or home screen.
     if old == Some(Phase::EndOfGame) && matches!(new, Phase::Lobby | Phase::None) {
+        profile::log_lp_notification(app);
         profile::refresh_soon(app);
+        // The client can update rank a bit after the lobby returns; a later refresh catches that
+        // so the game still gets its LP change.
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            profile::refresh_soon(&app);
+        });
     }
 }
 

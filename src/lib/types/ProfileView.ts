@@ -5,10 +5,10 @@ import type { RankedQueue } from "./RankedQueue";
 
 export type ProfileView = { game_name: string, tag_line: string, region: string, level: number, profile_icon: string, solo: RankedQueue | null, flex: RankedQueue | null, 
 /**
- * Newest first.
+ * Newest first: the client's recent games plus older ones from the local game log.
  */
 matches: Array<MatchSummary>, 
 /**
- * Ranked champions in the recent history, most played first.
+ * Ranked champions across the stored history, most played first.
  */
 champions: Array<ChampionStats>, fetched_at_ms: number, };

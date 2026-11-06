@@ -230,6 +230,27 @@
   flex-direction: column;
   gap: 4px;
 }
+.result-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lp {
+  font-size: 12px;
+  font-weight: 600;
+}
+.lp--up {
+  color: var(--good-text);
+}
+.lp--down {
+  color: var(--bad-text);
+}
+.lp-arrow {
+  font-size: 10px;
+}
+.history-note {
+  padding: 4px 2px 0;
+}
 .result {
   align-self: flex-start;
   padding: 3px 9px;

@@ -3,6 +3,7 @@ import { AssetIcon } from "../../components/AssetIcon";
 import { eventSignal } from "../../lib/events";
 import { duration, kdaRatio, perMinute, tierLabel, timeAgo, winRate } from "../../lib/format";
 import { getProfile, refreshProfile } from "../../lib/ipc";
+import type { LpChange } from "../../lib/types/LpChange";
 import type { MatchSummary } from "../../lib/types/MatchSummary";
 import type { ProfileView } from "../../lib/types/ProfileView";
 import type { RankedQueue } from "../../lib/types/RankedQueue";
@@ -131,6 +132,10 @@ function ProfileScreen(props: { profile: ProfileView; connected: boolean }) {
         </Show>
         <Show when={p().matches.length > 0} fallback={<p class="muted">No recent games.</p>}>
           <For each={p().matches}>{(m) => <MatchRow match={m} now={now()} />}</For>
+          <p class="muted small-13 history-note">
+            LP changes show for ranked games played while Pix is open. Older games come from Pix's
+            local game log, kept on this PC.
+          </p>
         </Show>
       </section>
     </div>
@@ -156,12 +161,35 @@ function RankedCard(props: { label: string; queue: RankedQueue | null }) {
   );
 }
 
+function LpBadge(props: { change: LpChange }) {
+  const c = () => props.change;
+  const moved = () => c().tier_before !== c().tier_after || c().division_before !== c().division_after;
+  const label = () => (c().delta > 0 ? `+${c().delta} LP` : c().delta < 0 ? `−${-c().delta} LP` : "±0 LP");
+  const title = () => {
+    const rank = tierLabel(c().tier_after, c().division_after);
+    return moved() ? `${c().delta > 0 ? "Promoted" : "Demoted"} to ${rank} · ${c().lp_after} LP` : `${rank} · ${c().lp_after} LP`;
+  };
+  return (
+    <span class={`lp ${c().delta >= 0 ? "lp--up" : "lp--down"}`} title={title()}>
+      {label()}
+      <Show when={moved()}>
+        <span class="lp-arrow" aria-label={c().delta > 0 ? "promoted" : "demoted"}>
+          {c().delta > 0 ? " ▲" : " ▼"}
+        </span>
+      </Show>
+    </span>
+  );
+}
+
 function MatchRow(props: { match: MatchSummary; now: number }) {
   const m = () => props.match;
   return (
     <article class="match">
       <div class="match-meta">
-        <span class={`result result--${m().result.toLowerCase()}`}>{m().result}</span>
+        <span class="result-line">
+          <span class={`result result--${m().result.toLowerCase()}`}>{m().result}</span>
+          <Show when={m().lp_change}>{(lp) => <LpBadge change={lp()} />}</Show>
+        </span>
         <span class="muted small">{m().queue}</span>
         <span class="muted small">
           {duration(m().duration_secs)} · {timeAgo(m().created_ms, props.now)}

@@ -8,7 +8,7 @@ use ts_rs::TS;
 use super::http::{LcuError, LcuHttp};
 
 /// A named thing with an icon. `icon` is a client asset path, served by the `lcu-asset` protocol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct Icon {
     pub id: i32,

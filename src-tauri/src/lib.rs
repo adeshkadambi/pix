@@ -2,9 +2,11 @@
 
 mod asset_protocol;
 mod config;
+mod db;
 mod ddragon;
 mod events;
 mod lcu;
+mod lp;
 mod overlay;
 mod profile;
 mod riot_tls;
@@ -72,7 +74,15 @@ pub fn run() {
             let config = Config::load(&config_path);
             tracing::info!("config loaded from {}", config_path.display());
             let cache_dir = app.path().app_cache_dir()?;
-            app.manage(AppState::new(config, config_path, cache_dir, riot_tls::public_http_client()));
+            let db_path = app.path().app_data_dir()?.join("pix.db");
+            let db = match db::Db::open(&db_path) {
+                Ok(db) => Some(db),
+                Err(e) => {
+                    tracing::error!("game log disabled, couldn't open {}: {e}", db_path.display());
+                    None
+                }
+            };
+            app.manage(AppState::new(config, config_path, cache_dir, db, riot_tls::public_http_client()));
 
             // Windows are marked `"create": false` in tauri.conf.json and built here, after the
             // state exists, so a page can't call a command before its state is managed.

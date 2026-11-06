@@ -7,6 +7,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::asset_protocol::AssetCache;
 use crate::config::Config;
+use crate::db::Db;
 use crate::ddragon::DData;
 use crate::events::{self, ClientStatus};
 use crate::lcu::catalog::Catalog;
@@ -23,14 +24,23 @@ pub struct AppState {
     /// Champion, item and spell names and icons from the connected client, fetched once.
     pub catalog: tokio::sync::Mutex<Option<Arc<Catalog>>>,
     pub profile: Mutex<Option<ProfileView>>,
+    /// Local game log. `None` if the database couldn't be opened; the app still works without it.
+    pub db: Option<Db>,
     pub ddragon: RwLock<Option<Arc<DData>>>,
     pub assets: AssetCache,
     pub public_http: reqwest::Client,
 }
 
 impl AppState {
-    pub fn new(config: Config, config_path: PathBuf, cache_dir: PathBuf, public_http: reqwest::Client) -> Self {
+    pub fn new(
+        config: Config,
+        config_path: PathBuf,
+        cache_dir: PathBuf,
+        db: Option<Db>,
+        public_http: reqwest::Client,
+    ) -> Self {
         Self {
+            db,
             config: Mutex::new(config),
             config_path,
             cache_dir,
