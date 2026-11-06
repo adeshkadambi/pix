@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pix — Champ select</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#140D21}
+a{color:#EE7AC8}a:hover{color:#F7A8DC}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #140D21; color: #F3ECFC; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 28px; border-bottom: 1px solid #2C2043; background: #170F26">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C12.8 7.5 16.5 11.2 22 12C16.5 12.8 12.8 16.5 12 22C11.2 16.5 7.5 12.8 2 12C7.5 11.2 11.2 7.5 12 2Z" fill="#EE7AC8"></path><circle cx="19.5" cy="4.5" r="1.7" fill="#A98BF5"></circle></svg>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em">Pix</span>
+    </div>
+    <nav aria-label="Main" style="display: flex; gap: 4px">
+      <a href="Main.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #B4A3D1; text-decoration: none; font-weight: 500">Profile</a>
+      <a href="Draft.dc.html" aria-current="page" style="padding: 8px 14px; border-radius: 8px; background: #2A1D42; color: #F3ECFC; text-decoration: none; font-weight: 500">Draft</a>
+      <a href="Live.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #B4A3D1; text-decoration: none; font-weight: 500">Live</a>
+    </nav>
+    <div style="display: flex; align-items: center; gap: 8px; color: #B4A3D1; font-size: 13px">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #EE7AC8"></span>
+      <span>Ranked Solo · champ select · <span style="color: #F3ECFC; font-weight: 600">0:21</span></span>
+    </div>
+  </header>
+
+  <main style="max-width: 1240px; margin: 0 auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+    <section aria-label="Bans" style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+        <span style="color: #B4A3D1; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px">Your bans</span>
+        <sc-for list="{{allyBans}}" as="b" hint-placeholder-count="5">
+          <span style="padding: 5px 10px; border-radius: 999px; border: 1px solid #3A2B57; color: #B4A3D1; font-size: 12px; text-decoration: line-through; text-decoration-color: #EE7AC8">{{b}}</span>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+        <span style="color: #B4A3D1; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px">Enemy bans</span>
+        <sc-for list="{{enemyBans}}" as="b" hint-placeholder-count="5">
+          <span style="padding: 5px 10px; border-radius: 999px; border: 1px solid #3A2B57; color: #B4A3D1; font-size: 12px; text-decoration: line-through; text-decoration-color: #EE7AC8">{{b}}</span>
+        </sc-for>
+      </div>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+      <section aria-label="Your team" style="flex: 1 1 230px; display: flex; flex-direction: column; gap: 8px; min-width: 0">
+        <h2 style="margin: 0 0 4px; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600">Your team</h2>
+        <sc-for list="{{allies}}" as="p" hint-placeholder-count="5">
+          <sc-if value="{{p.me}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #2A1D42; border: 1px solid #EE7AC8">
+              <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: #3A2858; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #F3ECFC">{{p.ini}}</span>
+              <div style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+                <span style="font-weight: 600">{{p.champ}}</span>
+                <span style="color: #F7A8DC; font-size: 12px">{{p.role}} · You</span>
+              </div>
+              <span style="color: #CDBFE6; font-size: 12px">{{p.state}}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{p.other}}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #1E1530; border: 1px solid #2C2043">
+              <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: #2A1D42; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #CDBFE6">{{p.ini}}</span>
+              <div style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+                <span style="font-weight: 600">{{p.champ}}</span>
+                <span style="color: #B4A3D1; font-size: 12px">{{p.role}}</span>
+              </div>
+              <span style="color: #B4A3D1; font-size: 12px">{{p.state}}</span>
+            </div>
+          </sc-if>
+        </sc-for>
+      </section>
+
+      <section aria-label="Pix suggestion" style="flex: 999 1 560px; min-width: 0; background: #1E1530; border: 1px solid #2C2043; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 20px">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span style="color: #EE7AC8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em">Pix suggests</span>
+            <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 600">Briar · Jungle</h1>
+            <span style="color: #B4A3D1; font-size: 13px">Built from op.gg ranked data, then adjusted for the enemy draft</span>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <button type="button" style="height: 40px; padding: 0 16px; border-radius: 10px; border: none; background: #EE7AC8; color: #1A0F24; font: 600 13px Inter, sans-serif; cursor: pointer">Send runes to client</button>
+            <button type="button" style="height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #3A2B57; background: transparent; color: #F3ECFC; font: 500 13px Inter, sans-serif; cursor: pointer">Save item set</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px">
+          <div style="background: #261A3B; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; justify-content: space-between; align-items: baseline"><h3 style="margin: 0; font-size: 13px; font-weight: 600; color: #CDBFE6; text-transform: uppercase; letter-spacing: 0.06em">Runes</h3><span style="color: #B4A3D1; font-size: 12px">40% pick rate</span></div>
+            <div style="display: flex; align-items: center; gap: 12px">
+              <span title="Press the Attack" aria-hidden="true" style="width: 52px; height: 52px; flex: none; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 2px solid #EE7AC8; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #F7A8DC">PTA</span>
+              <div style="display: flex; flex-direction: column"><span style="font-weight: 600">Press the Attack</span><span style="color: #B4A3D1; font-size: 12px">Precision keystone</span></div>
+            </div>
+            <div style="display: flex; gap: 14px">
+              <span title="Triumph" style="width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px"><span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #6A4A8C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #CDBFE6">TR</span><span style="font-size: 11px; color: #CDBFE6; text-align: center; line-height: 1.2">Triumph</span></span>
+              <span title="Legend: Alacrity" style="width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px"><span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #6A4A8C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #CDBFE6">LA</span><span style="font-size: 11px; color: #CDBFE6; text-align: center; line-height: 1.2">Alacrity</span></span>
+              <span title="Coup de Grace" style="width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px"><span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #6A4A8C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #CDBFE6">CG</span><span style="font-size: 11px; color: #CDBFE6; text-align: center; line-height: 1.2">Coup de Grace</span></span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 14px; padding-top: 10px; border-top: 1px solid #3A2B57">
+              <span title="Domination" style="width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px"><span aria-hidden="true" style="width: 28px; height: 28px; box-sizing: border-box; border-radius: 50%; border: 1px dashed #6A4A8C; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #B4A3D1">DOM</span><span style="font-size: 11px; color: #B4A3D1">Domination</span></span>
+              <span title="Sudden Impact" style="width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px"><span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #6A4A8C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #CDBFE6">SI</span><span style="font-size: 11px; color: #CDBFE6; text-align: center; line-height: 1.2">Sudden Impact</span></span>
+              <span title="Treasure Hunter" style="width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px"><span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #6A4A8C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #CDBFE6">TH</span><span style="font-size: 11px; color: #CDBFE6; text-align: center; line-height: 1.2">Treasure Hunter</span></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="color: #B4A3D1; font-size: 12px; margin-right: 2px">Shards</span>
+              <span title="Adaptive Force" aria-label="Adaptive Force" style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #4A3768; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #CDBFE6">AF</span>
+              <span title="Adaptive Force" aria-label="Adaptive Force" style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #4A3768; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #CDBFE6">AF</span>
+              <span title="Scaling Health" aria-label="Scaling Health" style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; background: #31224C; border: 1px solid #4A3768; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #CDBFE6">HP</span>
+            </div>
+          </div>
+
+          <div style="background: #261A3B; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+            <h3 style="margin: 0; font-size: 13px; font-weight: 600; color: #CDBFE6; text-transform: uppercase; letter-spacing: 0.06em">Build</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 14px 18px">
+              <sc-for list="{{build}}" as="g" hint-placeholder-count="6">
+                <div style="display: flex; flex-direction: column; gap: 6px">
+                  <span style="display: flex; gap: 6px; align-items: baseline; color: #B4A3D1; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em">{{g.label}}<sc-if value="{{g.adjusted}}" hint-placeholder-val="{{ false }}"><span style="color: #F7A8DC; font-weight: 600; text-transform: none; letter-spacing: 0">adjusted</span></sc-if></span>
+                  <div style="display: flex; gap: 6px">
+                    <sc-for list="{{g.tiles}}" as="t" hint-placeholder-count="2">
+                      <span title="{{t.name}}" style="width: 52px; display: flex; flex-direction: column; align-items: center; gap: 4px">
+                        <sc-if value="{{g.adjusted}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 6px; background: #31224C; border: 2px solid #EE7AC8; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #F7A8DC">{{t.abbr}}</span></sc-if>
+                        <sc-if value="{{g.plain}}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 6px; background: #31224C; border: 1px solid #6A4A8C; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #CDBFE6">{{t.abbr}}</span></sc-if>
+                        <span style="font-size: 11px; color: #CDBFE6; text-align: center; line-height: 1.2">{{t.short}}</span>
+                      </span>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <h3 style="margin: 0; font-size: 13px; font-weight: 600; color: #CDBFE6; text-transform: uppercase; letter-spacing: 0.06em">Why, for this draft</h3>
+          <sc-for list="{{reasons}}" as="r" hint-placeholder-count="3">
+            <div style="display: flex; gap: 12px; align-items: flex-start">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex: none; margin-top: 2px"><path d="M12 3C12.6 7.8 16.2 11.4 21 12C16.2 12.6 12.6 16.2 12 21C11.4 16.2 7.8 12.6 3 12C7.8 11.4 11.4 7.8 12 3Z" fill="#A98BF5"></path></svg>
+              <span style="line-height: 1.45"><strong style="font-weight: 600">{{r.who}}</strong> <span style="color: #CDBFE6">{{r.why}}</span></span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section aria-label="Enemy team" style="flex: 1 1 230px; display: flex; flex-direction: column; gap: 8px; min-width: 0">
+        <h2 style="margin: 0 0 4px; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600">Enemy team</h2>
+        <sc-for list="{{enemies}}" as="p" hint-placeholder-count="5">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #1E1530; border: 1px solid #2C2043">
+            <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: #2A1D42; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #CDBFE6">{{p.ini}}</span>
+            <div style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+              <span style="font-weight: 600">{{p.champ}}</span>
+              <span style="color: #B4A3D1; font-size: 12px">{{p.tag}}</span>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":920}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ini = (s) => s.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase();
+    const allies = [
+      ['Top', 'Aatrox', 'Locked', false],
+      ['Jungle', 'Briar', 'Locked', true],
+      ['Mid', 'Ahri', 'Locked', false],
+      ['Bot', 'Jinx', 'Locked', false],
+      ['Support', 'Thresh', 'Picking…', false]
+    ].map(([role, champ, state, me]) => ({ role, champ, state, me, other: !me, ini: ini(champ) }));
+    const enemies = [
+      ['Malphite', 'Tank · hard CC'],
+      ['Viego', 'Skirmisher'],
+      ['Syndra', 'Burst mage · stun'],
+      ["Kai'Sa", 'Mixed damage'],
+      ['Leona', 'Tank · hard CC']
+    ].map(([champ, tag]) => ({ champ, tag, ini: ini(champ) }));
+    const reasons = [
+      { who: 'Malphite, Leona, Syndra:', why: 'three hard-CC threats, so Mercury’s Treads replace Plated Steelcaps.' },
+      { who: 'Malphite + Leona front line:', why: 'they will stack armor, so Lord Dominik’s Regards stays third.' },
+      { who: 'Syndra + Kai’Sa burst:', why: 'Death’s Dance comes before Guardian Angel.' }
+    ];
+    const tile = (name, abbr, short) => ({ name, abbr, short });
+    const build = [
+      ['Spells', [tile('Smite', 'SM', 'Smite'), tile('Flash', 'FL', 'Flash')]],
+      ['Start', [tile('Scorchclaw Pup', 'SP', 'Pup')]],
+      ['Boots', [tile('Mercury’s Treads', 'MT', 'Mercs')], true],
+      ['Core', [tile('The Collector', 'TC', 'Collector'), tile('Titanic Hydra', 'TH', 'Hydra'), tile('Lord Dominik’s Regards', 'LD', 'Dominik’s')]],
+      ['Then', [tile('Death’s Dance', 'DD', 'Death’s Dance'), tile('Guardian Angel', 'GA', 'Guardian Angel')]],
+      ['Skill max', [tile('Max W first', 'W', '1st'), tile('Then Q', 'Q', '2nd'), tile('Then E', 'E', '3rd')]]
+    ].map(([label, tiles, adjusted]) => ({ label, tiles, adjusted: !!adjusted, plain: !adjusted }));
+    return {
+      allies, enemies, reasons, build,
+      allyBans: ["Bel'Veth", 'Nidalee', 'Zed', 'Smolder', 'Blitzcrank'],
+      enemyBans: ['Lee Sin', 'Yasuo', 'Morgana', 'Draven', 'Fiddlesticks']
+    };
+  }
+}
+</script>
+</body>
+</html>

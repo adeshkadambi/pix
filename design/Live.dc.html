@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pix — Live build</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#140D21}
+a{color:#EE7AC8}a:hover{color:#F7A8DC}
+</style>
+</helmet>
+<div style="width: 440px; height: 920px; box-sizing: border-box; background: #140D21; color: #F3ECFC; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums; display: flex; flex-direction: column">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #2C2043; background: #170F26">
+    <a href="Main.dc.html" aria-label="Pix home" style="display: flex; align-items: center; gap: 8px; color: #F3ECFC; text-decoration: none">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C12.8 7.5 16.5 11.2 22 12C16.5 12.8 12.8 16.5 12 22C11.2 16.5 7.5 12.8 2 12C7.5 11.2 11.2 7.5 12 2Z" fill="#EE7AC8"></path><circle cx="19.5" cy="4.5" r="1.7" fill="#A98BF5"></circle></svg>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px">Pix</span>
+    </a>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #3D1F33; color: #F7A8DC; font-size: 12px; font-weight: 600"><span style="width: 6px; height: 6px; border-radius: 50%; background: #EE7AC8"></span>Live</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600">18:42</span>
+    </div>
+  </header>
+
+  <div style="flex: 1; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; overflow: hidden">
+
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="width: 44px; height: 44px; flex: none; border-radius: 50%; background: #2A1D42; border: 2px solid #EE7AC8; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #F3ECFC">BR</span>
+      <div style="flex: 1; display: flex; flex-direction: column">
+        <span style="font-weight: 600">Briar · Lv 11</span>
+        <span style="color: #B4A3D1; font-size: 12px">6 / 2 / 5 · 142 CS</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: flex-end">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; color: #F3ECFC">1,130 g</span>
+        <span style="color: #B4A3D1; font-size: 12px">on hand</span>
+      </div>
+    </div>
+
+    <section aria-label="Next buy" style="background: #2A1D42; border: 1px solid #EE7AC8; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+      <span style="color: #EE7AC8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em">Next buy</span>
+      <div style="display: flex; align-items: center; gap: 14px">
+        <span style="width: 52px; height: 52px; flex: none; border-radius: 12px; background: #3A2858; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #CDBFE6">item</span>
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 600">Lord Dominik's Regards</span>
+          <span style="color: #CDBFE6; font-size: 13px">Moved up from 4th</span>
+        </div>
+      </div>
+      <p style="margin: 0; color: #CDBFE6; font-size: 13px; line-height: 1.5">Malphite just finished Thornmail and Leona has two armor items. Armor pen now beats Death's Dance here.</p>
+    </section>
+
+    <section aria-label="Build path" style="display: flex; flex-direction: column; gap: 8px">
+      <h2 style="margin: 0 0 2px; font-size: 12px; font-weight: 600; color: #CDBFE6; text-transform: uppercase; letter-spacing: 0.06em">Build path</h2>
+      <sc-for list="{{path}}" as="s" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; background: #1E1530">
+          <span style="width: 22px; text-align: center; color: #B4A3D1; font-size: 12px; font-weight: 600">{{s.n}}</span>
+          <span style="flex: 1; font-weight: 500">{{s.item}}</span>
+          <sc-if value="{{s.owned}}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 8px; border-radius: 999px; background: #2E3D22; color: #C4EA97; font-size: 11px; font-weight: 600">Owned</span></sc-if>
+          <sc-if value="{{s.next}}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 8px; border-radius: 999px; background: #EE7AC8; color: #1A0F24; font-size: 11px; font-weight: 600">Next</span></sc-if>
+          <sc-if value="{{s.later}}" hint-placeholder-val="{{ true }}"><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid #3A2B57; color: #B4A3D1; font-size: 11px; font-weight: 500">Later</span></sc-if>
+        </div>
+      </sc-for>
+    </section>
+
+    <section aria-label="Why it changed" style="display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 12px; font-weight: 600; color: #CDBFE6; text-transform: uppercase; letter-spacing: 0.06em">Why it changed</h2>
+      <sc-for list="{{log}}" as="e" hint-placeholder-count="3">
+        <div style="display: flex; gap: 12px; align-items: baseline">
+          <span style="width: 40px; flex: none; color: #B4A3D1; font-size: 12px; font-family: 'Space Grotesk', sans-serif">{{e.t}}</span>
+          <span style="color: #CDBFE6; font-size: 13px; line-height: 1.45">{{e.text}}</span>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+
+  <footer style="padding: 12px 20px; border-top: 1px solid #2C2043; display: flex; align-items: center; gap: 8px; color: #B4A3D1; font-size: 12px">
+    <span style="padding: 2px 7px; border: 1px solid #4A3768; border-radius: 5px; color: #F3ECFC; font-weight: 600; font-size: 11px">Tab</span>
+    <span>Hold in game for gold diff and summoner timers</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":440,"height":920}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const path = [
+      ['The Collector', 'owned'],
+      ['Titanic Hydra', 'owned'],
+      ['Plated Steelcaps', 'owned'],
+      ["Lord Dominik's Regards", 'next'],
+      ["Death's Dance", 'later'],
+      ['Guardian Angel', 'later']
+    ].map(([item, st], i) => ({ n: i + 1, item, owned: st === 'owned', next: st === 'next', later: st === 'later' }));
+    const log = [
+      { t: '17:55', text: 'Malphite completed Thornmail → Lord Dominik’s Regards moved ahead of Death’s Dance.' },
+      { t: '11:20', text: 'Kai’Sa and Viego both went AD → Plated Steelcaps replaced Mercury’s Treads.' },
+      { t: '08:30', text: 'Enemy team leans tanky → Black Cleaver dropped for Lord Dominik’s Regards.' }
+    ];
+    return { path, log };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pix — Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#140D21}
+a{color:#EE7AC8}a:hover{color:#F7A8DC}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #140D21; color: #F3ECFC; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 28px; border-bottom: 1px solid #2C2043; background: #170F26">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C12.8 7.5 16.5 11.2 22 12C16.5 12.8 12.8 16.5 12 22C11.2 16.5 7.5 12.8 2 12C7.5 11.2 11.2 7.5 12 2Z" fill="#EE7AC8"></path><circle cx="19.5" cy="4.5" r="1.7" fill="#A98BF5"></circle></svg>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em">Pix</span>
+    </div>
+    <nav aria-label="Main" style="display: flex; gap: 4px">
+      <a href="Main.dc.html" aria-current="page" style="padding: 8px 14px; border-radius: 8px; background: #2A1D42; color: #F3ECFC; text-decoration: none; font-weight: 500">Profile</a>
+      <a href="Draft.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #B4A3D1; text-decoration: none; font-weight: 500">Draft</a>
+      <a href="Live.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #B4A3D1; text-decoration: none; font-weight: 500">Live</a>
+    </nav>
+    <div style="display: flex; align-items: center; gap: 8px; color: #B4A3D1; font-size: 13px">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #A6D86E"></span>
+      <span>Client connected · in lobby</span>
+    </div>
+  </header>
+
+  <main style="max-width: 1240px; margin: 0 auto; padding: 28px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; box-sizing: border-box">
+
+    <section aria-label="Profile" style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 16px; min-width: 0">
+      <div style="background: #1E1530; border: 1px solid #2C2043; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; align-items: center; gap: 14px">
+          <div style="position: relative; flex: none; box-sizing: border-box; width: 64px; height: 64px; aspect-ratio: 1 / 1; border-radius: 50%; background: #2A1D42; border: 2px solid #EE7AC8; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; color: #B4A3D1">icon</div>
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+            <div style="font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 600">voodooflame <span style="color: #B4A3D1; font-weight: 500">#0000</span></div>
+            <div style="color: #B4A3D1; font-size: 13px">NA · Level 397</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+          <div style="background: #261A3B; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px">
+            <span style="color: #B4A3D1; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em">Solo / Duo</span>
+            <span style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">Platinum IV</span>
+            <span style="color: #EE7AC8; font-weight: 600">39 LP</span>
+            <span style="color: #B4A3D1; font-size: 13px">70W 73L · 49%</span>
+          </div>
+          <div style="background: #261A3B; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px">
+            <span style="color: #B4A3D1; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em">Flex</span>
+            <span style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">Gold IV</span>
+            <span style="color: #EE7AC8; font-weight: 600">90 LP</span>
+            <span style="color: #B4A3D1; font-size: 13px">5W 4L · 56%</span>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; justify-content: space-between; color: #B4A3D1; font-size: 13px"><span>Last 8 games</span><span style="color: #F3ECFC; font-weight: 600">{{form.w}}W {{form.l}}L</span></div>
+          <div style="display: flex; gap: 6px" aria-hidden="true">
+            <sc-for list="{{matches}}" as="m" hint-placeholder-count="8">
+              <sc-if value="{{m.win}}" hint-placeholder-val="{{ true }}"><span style="flex: 1; height: 6px; border-radius: 3px; background: #A6D86E"></span></sc-if>
+              <sc-if value="{{m.loss}}" hint-placeholder-val="{{ false }}"><span style="flex: 1; height: 6px; border-radius: 3px; background: #4A3768"></span></sc-if>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #1E1530; border: 1px solid #2C2043; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600">Ranked champions</h2>
+        <sc-for list="{{champs}}" as="c" hint-placeholder-count="5">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <span style="width: 36px; height: 36px; flex: none; border-radius: 50%; background: #2A1D42; border: 1px solid #3A2B57; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #CDBFE6">{{c.ini}}</span>
+            <div style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+              <span style="font-weight: 600">{{c.name}}</span>
+              <span style="color: #B4A3D1; font-size: 12px">{{c.games}} games · {{c.kda}} KDA</span>
+            </div>
+            <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600">{{c.wr}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-label="Match history" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+        <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 600">Match history</h1>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span style="color: #B4A3D1; font-size: 13px">from op.gg · 2 min ago</span>
+          <button type="button" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #3A2B57; background: #1E1530; color: #F3ECFC; font: 500 13px Inter, sans-serif; cursor: pointer">Refresh</button>
+        </div>
+      </div>
+
+      <sc-for list="{{matches}}" as="m" hint-placeholder-count="8">
+        <article style="background: #1E1530; border: 1px solid #2C2043; border-radius: 14px; padding: 14px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
+          <div style="width: 74px; display: flex; flex-direction: column; gap: 4px">
+            <sc-if value="{{m.win}}" hint-placeholder-val="{{ true }}"><span style="align-self: flex-start; padding: 3px 9px; border-radius: 999px; background: #2E3D22; color: #C4EA97; font-size: 12px; font-weight: 600">Win</span></sc-if>
+            <sc-if value="{{m.loss}}" hint-placeholder-val="{{ false }}"><span style="align-self: flex-start; padding: 3px 9px; border-radius: 999px; background: #3D1F33; color: #F7A8DC; font-size: 12px; font-weight: 600">Loss</span></sc-if>
+            <span style="color: #B4A3D1; font-size: 12px">{{m.queue}}</span>
+            <span style="color: #B4A3D1; font-size: 12px">{{m.dur}} · {{m.ago}}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; width: 150px">
+            <span style="width: 44px; height: 44px; flex: none; border-radius: 50%; background: #2A1D42; border: 1px solid #3A2B57; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #CDBFE6">{{m.ini}}</span>
+            <div style="display: flex; flex-direction: column; min-width: 0">
+              <span style="font-weight: 600">{{m.champ}}</span>
+              <span style="color: #B4A3D1; font-size: 12px">Smite · Flash</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; width: 108px">
+            <span style="font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">{{m.k}} / {{m.d}} / {{m.a}}</span>
+            <span style="color: #B4A3D1; font-size: 12px">{{m.ratio}}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; width: 96px">
+            <span style="font-weight: 500">{{m.cs}} CS</span>
+            <span style="color: #B4A3D1; font-size: 12px">{{m.csm}} / min</span>
+          </div>
+          <div aria-label="Items" style="flex: 1 1 260px; display: flex; gap: 6px; min-width: 0">
+            <sc-for list="{{m.slots}}" as="it" hint-placeholder-count="6">
+              <sc-if value="{{it.filled}}" hint-placeholder-val="{{ true }}">
+                <span title="{{it.name}}" style="width: 36px; height: 36px; flex: none; box-sizing: border-box; border-radius: 6px; background: #2E2147; border: 1px solid #4A3768; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #CDBFE6"><span aria-hidden="true">{{it.abbr}}</span><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">{{it.name}}</span></span>
+              </sc-if>
+              <sc-if value="{{it.empty}}" hint-placeholder-val="{{ false }}">
+                <span aria-hidden="true" style="width: 36px; height: 36px; flex: none; box-sizing: border-box; border-radius: 6px; border: 1px dashed #3A2B57"></span>
+              </sc-if>
+            </sc-for>
+          </div>
+        </article>
+      </sc-for>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":920}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const raw = [
+      ['Briar', 'Ranked Solo', true, 11, 3, 11, 216, 1943, '3d ago', ['Black Cleaver', 'Titanic Hydra', "Death's Dance", 'Endless Hunger', 'Plated Steelcaps', 'Control Ward']],
+      ['Briar', 'Ranked Solo', false, 3, 7, 7, 217, 2248, '3d ago', ['Black Cleaver', 'Titanic Hydra', "Death's Dance", 'Plated Steelcaps', "Caulfield's Warhammer", 'Control Ward']],
+      ['Briar', 'Ranked Solo', true, 8, 3, 4, 251, 2051, '3d ago', ['Plated Steelcaps', 'Titanic Hydra', 'Black Cleaver', "Death's Dance", "Caulfield's Warhammer"]],
+      ['Wukong', 'Normal', true, 0, 1, 1, 40, 401, '7d ago', ['Scorchclaw Pup', 'Long Sword', 'Long Sword', 'Dagger']],
+      ['Briar', 'Ranked Solo', false, 14, 8, 6, 226, 2027, '8d ago', ['Plated Steelcaps', 'Titanic Hydra', 'The Collector', "Death's Dance", 'Black Cleaver', 'Spirit Visage']],
+      ['Briar', 'Ranked Solo', true, 7, 0, 2, 168, 1275, '8d ago', ['The Collector', 'Titanic Hydra', 'Boots', 'Cloth Armor']],
+      ['Skarner', 'Ranked Solo', true, 4, 0, 9, 140, 1346, '9d ago', ['Slightly Magical Footwear', 'Titanic Hydra', 'Heartsteel', 'Tunneler', 'Cloth Armor']],
+      ['Briar', 'Ranked Solo', false, 3, 8, 8, 221, 2197, '12d ago', ['Black Cleaver', 'Titanic Hydra', "Death's Dance", "Mercury's Treads", 'Pickaxe', 'Long Sword']]
+    ];
+    const pad = (n) => String(n).padStart(2, '0');
+    const matches = raw.map(([champ, queue, win, k, d, a, cs, secs, ago, items]) => ({
+      champ, queue, win, loss: !win, k, d, a, cs, ago, items,
+      slots: Array.from({ length: 6 }, (_, i) => items[i]
+        ? { filled: true, empty: false, name: items[i], abbr: items[i].replace(/'s\b/g, '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() }
+        : { filled: false, empty: true }),
+      ini: champ.slice(0, 2).toUpperCase(),
+      ratio: d === 0 ? 'Perfect KDA' : ((k + a) / d).toFixed(2) + ' KDA',
+      dur: Math.floor(secs / 60) + ':' + pad(secs % 60),
+      csm: (cs / (secs / 60)).toFixed(1)
+    }));
+    const w = matches.filter((m) => m.win).length;
+    const champs = [
+      ['Briar', 46, 23, 323, 241, 360],
+      ['Zyra', 36, 20, 142, 203, 408],
+      ['Skarner', 12, 9, 49, 39, 144],
+      ['Pyke', 11, 4, 76, 74, 93],
+      ['Neeko', 10, 6, 29, 50, 98]
+    ].map(([name, games, wins, k, d, a]) => ({
+      name, games, ini: name.slice(0, 2).toUpperCase(),
+      wr: Math.round((wins / games) * 100) + '%',
+      kda: ((k + a) / d).toFixed(2)
+    }));
+    return { matches, champs, form: { w, l: matches.length - w } };
+  }
+}
+</script>
+</body>
+</html>

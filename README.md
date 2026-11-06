@@ -7,7 +7,7 @@ Personal, Windows-only League of Legends companion and overlay (Tauri v2 + Rust)
 - In-game overlay: gold diff and summoner spell timers (clickable while holding TAB)
 - Second-screen companion: pre-game build, threat card, enemy purchases, post-game review
 
-**Status:** spec only. No app code yet; UI designs are coming from Claude Design.
+**Status:** spec only. No app code yet. UI designs are in [design/](design/README.md), exported from Claude Design.
 
 See [SPEC.md](SPEC.md) for the full specification, compliance rules and milestones (M0–M6).
 

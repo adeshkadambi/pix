@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pix — Tab overlay</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#1A1E1D}
+a{color:#EE7AC8}a:hover{color:#F7A8DC}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #1A1E1D; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums; color: #F3ECFC">
+
+  <div style="position: absolute; left: 32px; top: 28px; color: #8E9692; font-size: 13px; letter-spacing: 0.04em">GAME VIEW · borderless windowed (placeholder)</div>
+
+  <section aria-label="Team gold difference" style="position: absolute; left: 610px; top: 166px; width: 700px; height: 56px; box-sizing: border-box; padding: 0 18px; border-radius: 14px; background: rgba(20, 13, 33, 0.94); border: 1px solid #5B3A73; display: flex; align-items: center; gap: 14px">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex: none"><path d="M12 2C12.8 7.5 16.5 11.2 22 12C16.5 12.8 12.8 16.5 12 22C11.2 16.5 7.5 12.8 2 12C7.5 11.2 11.2 7.5 12 2Z" fill="#EE7AC8"></path></svg>
+    <span style="font-weight: 600; white-space: nowrap">Team gold</span>
+    <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; color: #CDBFE6">{{team.ally}}</span>
+    <div style="flex: 1; height: 8px; border-radius: 4px; background: #6E3D63; overflow: hidden; display: flex">
+      <span style="height: 100%; width: {{team.allyPct}}%; background: #A98BF5"></span>
+    </div>
+    <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; color: #CDBFE6">{{team.enemy}}</span>
+    <sc-if value="{{team.ahead}}" hint-placeholder-val="{{ false }}"><span style="width: 76px; text-align: right; font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: #C4EA97">{{team.diff}}</span></sc-if>
+    <sc-if value="{{team.behind}}" hint-placeholder-val="{{ true }}"><span style="width: 76px; text-align: right; font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: #F7A8DC">{{team.diff}}</span></sc-if>
+  </section>
+
+  <section aria-label="Game scoreboard stand-in" style="position: absolute; left: 384px; top: 236px; width: 1152px; height: 456px; box-sizing: border-box; background: #20262A; border: 1px solid #3A403D; border-radius: 6px; display: flex; flex-direction: column; color: #C9CFCC">
+    <div style="height: 76px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #343A37">
+      <span style="color: #8E9692; font-size: 12px; letter-spacing: 0.04em">GAME SCOREBOARD (stand-in)</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 600; color: #DCE2DF">18 <span style="color: #8E9692; font-size: 14px">vs</span> 16</span>
+      <span style="width: 170px"></span>
+    </div>
+    <div style="flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))">
+      <div style="display: flex; flex-direction: column; border-right: 1px solid #3A403D">
+        <sc-for list="{{allies}}" as="p" hint-placeholder-count="5">
+          <div style="height: 76px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid #2C3230">
+            <span style="display: flex; flex-direction: column; gap: 4px" aria-hidden="true"><span style="width: 22px; height: 22px; border-radius: 3px; background: #3A3F3D"></span><span style="width: 22px; height: 22px; border-radius: 3px; background: #3A3F3D"></span></span>
+            <span style="width: 50px; height: 50px; flex: none; border-radius: 50%; background: #3C4240; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">{{p.ini}}</span>
+            <span style="width: 40px; text-align: center; font-weight: 600">{{p.cs}}</span>
+            <span style="width: 80px; text-align: center">{{p.kda}}</span>
+            <span style="display: flex; gap: 4px" aria-hidden="true"><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span></span>
+            <span style="flex: 1"></span>
+            <span aria-hidden="true" style="width: 30px; height: 30px; border-radius: 50%; background: #333937"></span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column">
+        <sc-for list="{{enemies}}" as="p" hint-placeholder-count="5">
+          <div style="height: 76px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid #2C3230">
+            <span style="display: flex; flex-direction: column; gap: 4px" aria-hidden="true"><span style="width: 22px; height: 22px; border-radius: 3px; background: #3A3F3D"></span><span style="width: 22px; height: 22px; border-radius: 3px; background: #3A3F3D"></span></span>
+            <span style="width: 50px; height: 50px; flex: none; border-radius: 50%; background: #3C4240; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">{{p.ini}}</span>
+            <span style="width: 40px; text-align: center; font-weight: 600">{{p.cs}}</span>
+            <span style="width: 80px; text-align: center">{{p.kda}}</span>
+            <span style="display: flex; gap: 4px" aria-hidden="true"><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span><span style="width: 34px; height: 34px; background: #333937; border-radius: 4px"></span></span>
+            <span style="flex: 1"></span>
+            <span aria-hidden="true" style="width: 30px; height: 30px; border-radius: 50%; background: #333937"></span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <div aria-label="Your estimated gold" style="position: absolute; left: 252px; top: 400px; width: 120px; height: 52px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; background: rgba(20, 13, 33, 0.94); border: 1px solid #EE7AC8; display: flex; flex-direction: column; align-items: flex-end; justify-content: center">
+    <span style="font-size: 11px; color: #F7A8DC; font-weight: 600; letter-spacing: 0.04em">YOU</span>
+    <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600">{{myGold}}</span>
+  </div>
+
+  <section aria-label="Gold versus you and enemy summoner timers" style="position: absolute; left: 1548px; top: 248px; width: 344px; display: flex; flex-direction: column">
+    <div style="height: 64px; display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 10px; box-sizing: border-box">
+      <span style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 14px">Gold vs you · summoners</span>
+        <span style="color: #CDBFE6; font-size: 11px">Click a spell when you see it used</span>
+      </span>
+      <span style="font-family: 'Space Grotesk', sans-serif; color: #CDBFE6; font-size: 13px">{{clock}}</span>
+    </div>
+    <sc-for list="{{enemies}}" as="e" hint-placeholder-count="5">
+      <div style="height: 76px; display: flex; align-items: center; gap: 8px">
+        <sc-if value="{{e.ahead}}" hint-placeholder-val="{{ true }}">
+          <span style="width: 104px; height: 56px; box-sizing: border-box; padding: 0 10px; border-radius: 10px; background: rgba(20, 13, 33, 0.94); border: 1px solid #4F6B38; display: flex; flex-direction: column; justify-content: center">
+            <span style="display: flex; align-items: center; gap: 4px; font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: #C4EA97"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1L9 8H1Z" fill="#C4EA97"></path></svg>{{e.diff}}</span>
+            <span style="font-size: 11px; color: #CDBFE6">{{e.champ}} {{e.goldK}}</span>
+          </span>
+        </sc-if>
+        <sc-if value="{{e.behind}}" hint-placeholder-val="{{ false }}">
+          <span style="width: 104px; height: 56px; box-sizing: border-box; padding: 0 10px; border-radius: 10px; background: rgba(20, 13, 33, 0.94); border: 1px solid #7A3F66; display: flex; flex-direction: column; justify-content: center">
+            <span style="display: flex; align-items: center; gap: 4px; font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: #F7A8DC"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 9L1 2H9Z" fill="#F7A8DC"></path></svg>{{e.diff}}</span>
+            <span style="font-size: 11px; color: #CDBFE6">{{e.champ}} {{e.goldK}}</span>
+          </span>
+        </sc-if>
+        <sc-for list="{{e.spells}}" as="s" hint-placeholder-count="2">
+          <sc-if value="{{s.untracked}}" hint-placeholder-val="{{ false }}">
+            <span style="width: 108px; height: 56px; box-sizing: border-box; border-radius: 10px; border: 1px dashed #4A3768; background: rgba(20, 13, 33, 0.8); padding: 0 10px; display: flex; flex-direction: column; justify-content: center; color: #CDBFE6; font-size: 12px"><span style="font-weight: 600">{{s.name}}</span><span style="font-size: 11px">not tracked</span></span>
+          </sc-if>
+          <sc-if value="{{s.ready}}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{s.toggle}}" aria-label="Start {{s.name}} timer for {{e.champ}}" style="width: 108px; height: 56px; border-radius: 10px; border: 1px solid #4A3768; background: rgba(20, 13, 33, 0.94); color: #F3ECFC; padding: 0 10px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; cursor: pointer; font: 600 13px Inter, sans-serif">
+              <span>{{s.name}}</span><span style="font-size: 11px; font-weight: 500; color: #C4EA97">Ready</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{s.running}}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{s.toggle}}" aria-label="Cancel {{s.name}} timer for {{e.champ}}" style="position: relative; overflow: hidden; width: 108px; height: 56px; border-radius: 10px; border: 1px solid #EE7AC8; background: #2A1D42; color: #F3ECFC; padding: 0 10px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; cursor: pointer; font: 600 13px Inter, sans-serif">
+              <span style="display: flex; gap: 6px; align-items: baseline"><span>{{s.name}}</span><span style="font-family: 'Space Grotesk', sans-serif; color: #F7A8DC">{{s.left}}</span></span>
+              <span style="font-size: 11px; font-weight: 500; color: #CDBFE6">up at {{s.upAt}}</span>
+              <span style="position: absolute; left: 0; bottom: 0; height: 3px; width: {{s.pct}}%; background: #EE7AC8"></span>
+            </button>
+          </sc-if>
+        </sc-for>
+      </div>
+    </sc-for>
+  </section>
+
+  <div style="position: absolute; left: 384px; top: 704px; width: 1152px; text-align: center; color: #B4ACBF; font-size: 12px">Pix gold figures are estimated from item value · unspent gold isn't visible to the app</div>
+
+  <div style="position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(20, 13, 33, 0.92); border: 1px solid #3A2B57; color: #CDBFE6; font-size: 12px">
+    <span style="padding: 1px 6px; border: 1px solid #4A3768; border-radius: 5px; color: #F3ECFC; font-weight: 600; font-size: 11px">Tab</span>
+    <span>Pix overlay shows only while Tab is held</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    const n = Date.now();
+    this.t0 = n;
+    this.setState({ now: n, timers: { "Kai'Sa-Flash": n - 108000, 'Leona-Ignite': n - 60000 } });
+    this.iv = setInterval(() => this.setState({ now: Date.now() }), 1000);
+  }
+  componentWillUnmount() { clearInterval(this.iv); }
+  renderVals() {
+    const st = this.state || {};
+    const now = st.now || Date.now();
+    const t0 = this.t0 || now;
+    const running = st.timers || { "Kai'Sa-Flash": now - 108000, 'Leona-Ignite': now - 60000 };
+    const pad = (x) => String(x).padStart(2, '0');
+    const mmss = (s) => Math.floor(s / 60) + ':' + pad(s % 60);
+    const gameSec = 18 * 60 + 42 + Math.floor((now - t0) / 1000);
+    const ini = (s) => s.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase();
+    const k = (g) => (g / 1000).toFixed(1) + 'k';
+    const signed = (d) => (d >= 0 ? '+' : '−') + (Math.abs(d) < 1000 ? Math.abs(d) : (Math.abs(d) / 1000).toFixed(1) + 'k');
+    const cds = { Flash: 300, Teleport: 360, Ignite: 180, Heal: 240 };
+
+    const allyRaw = [['Aatrox', '3/4/4', 151, 8900], ['Briar', '6/2/5', 142, 9850], ['Ahri', '4/4/6', 168, 9300], ['Jinx', '5/2/3', 180, 10400], ['Thresh', '0/4/9', 28, 6100]];
+    const enemyRaw = [
+      ['Malphite', '1/4/2', 139, 8400, ['Flash', 'Teleport']],
+      ['Viego', '5/3/3', 128, 10900, ['Flash', 'Smite']],
+      ['Syndra', '3/3/4', 160, 9600, ['Flash', 'Teleport']],
+      ["Kai'Sa", '6/3/2', 185, 11300, ['Flash', 'Heal']],
+      ['Leona', '1/5/6', 25, 6200, ['Flash', 'Ignite']]
+    ];
+    const myGold = 9850;
+    const allies = allyRaw.map(([champ, kda, cs]) => ({ champ, kda, cs, ini: ini(champ) }));
+    const enemies = enemyRaw.map(([champ, kda, cs, gold, spells]) => {
+      const d = myGold - gold;
+      return {
+        champ, kda, cs, ini: ini(champ), goldK: k(gold), diff: signed(d), ahead: d >= 0, behind: d < 0,
+        spells: spells.map((name) => {
+          const key = champ + '-' + name;
+          const cd = cds[name];
+          if (!cd) return { name, untracked: true, ready: false, running: false };
+          const started = running[key];
+          const rem = started ? Math.ceil(cd - (now - started) / 1000) : 0;
+          const on = rem > 0;
+          return {
+            name, untracked: false, ready: !on, running: on,
+            left: mmss(Math.max(rem, 0)), upAt: mmss(gameSec + Math.max(rem, 0)),
+            pct: on ? ((1 - rem / cd) * 100).toFixed(1) : '0',
+            toggle: () => {
+              const t = Object.assign({}, (this.state && this.state.timers) || running);
+              if (on) delete t[key]; else t[key] = Date.now();
+              this.setState({ timers: t, now: Date.now() });
+            }
+          };
+        })
+      };
+    });
+    const allySum = allyRaw.reduce((a, r) => a + r[3], 0);
+    const enemySum = enemyRaw.reduce((a, r) => a + r[3], 0);
+    const td = allySum - enemySum;
+    const team = { ally: k(allySum), enemy: k(enemySum), diff: signed(td), ahead: td >= 0, behind: td < 0, allyPct: (allySum / (allySum + enemySum) * 100).toFixed(1) };
+    return { allies, enemies, team, myGold: k(myGold) + ' est.', clock: mmss(gameSec) };
+  }
+}
+</script>
+</body>
+</html>
