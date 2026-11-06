@@ -1,4 +1,4 @@
-/* Compact enemy-spells panel. Sized to fit the window in tauri.conf.json (140×214). */
+/* Compact enemy panel. Sized to fit the window in tauri.conf.json (168×234). */
 .tabpanel {
   display: inline-flex;
   flex-direction: column;
@@ -115,6 +115,31 @@
   bottom: 0;
   height: 2px;
   background: var(--accent);
+}
+
+/* Item gold: one thin team line, a tiny chip per lane */
+.tp-team {
+  display: flex;
+  justify-content: space-between;
+  height: 16px;
+  padding: 0 2px;
+  font: 600 10px var(--font-body);
+  color: var(--text-muted);
+}
+.tp-team span:last-child {
+  font-family: var(--font-display);
+}
+.tp-gold {
+  width: 30px;
+  text-align: center;
+  font: 700 9px var(--font-display);
+  color: var(--text-muted);
+}
+.tp-up {
+  color: var(--good-text);
+}
+.tp-down {
+  color: var(--bad-text);
 }
 
 /* Cosmic Insight checkbox */

@@ -142,7 +142,6 @@ impl AllGameData {
         self.all_players.iter().find(|p| p.id_matches(&a.riot_id, &a.summoner_name))
     }
 
-    #[allow(dead_code, reason = "used by the gold diff in M4")]
     pub fn allies(&self) -> impl Iterator<Item = &Player> {
         let team = self.me().map(|m| m.team.clone()).unwrap_or_default();
         self.all_players.iter().filter(move |p| p.team == team)

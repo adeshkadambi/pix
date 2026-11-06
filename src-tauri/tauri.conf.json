@@ -51,8 +51,8 @@
         "skipTaskbar": true,
         "focus": false,
         "resizable": false,
-        "width": 140,
-        "height": 214
+        "width": 168,
+        "height": 234
       }
     ],
     "security": {

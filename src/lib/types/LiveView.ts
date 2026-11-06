@@ -3,6 +3,7 @@ import type { LiveBuild } from "./LiveBuild";
 import type { LiveEnemy } from "./LiveEnemy";
 import type { LiveMe } from "./LiveMe";
 import type { PurchaseView } from "./PurchaseView";
+import type { TeamGold } from "./TeamGold";
 import type { ThreatView } from "./ThreatView";
 import type { WindowMode } from "./WindowMode";
 
@@ -10,4 +11,12 @@ export type LiveView = { game_time: number, summoners_rift: boolean, me: LiveMe 
 /**
  * Why there's no build, when there isn't one.
  */
-build_note: string | null, threats: Array<ThreatView>, purchases: Array<PurchaseView>, enemies: Array<LiveEnemy>, window_mode: WindowMode | null, };
+build_note: string | null, threats: Array<ThreatView>, purchases: Array<PurchaseView>, enemies: Array<LiveEnemy>, window_mode: WindowMode | null, 
+/**
+ * Summoner timers are on (the tab panel shows spell buttons).
+ */
+timers_enabled: boolean, 
+/**
+ * Team item gold, when the gold feature is on.
+ */
+team_gold: TeamGold | null, };

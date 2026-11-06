@@ -14,4 +14,8 @@ position: string, spells: Array<SpellView>,
 /**
  * You ticked Cosmic Insight for this enemy.
  */
-cosmic: boolean, haste: number, };
+cosmic: boolean, haste: number, 
+/**
+ * Your laner's item gold minus this enemy's (gold feature on and lane known).
+ */
+lane_gold: number | null, };

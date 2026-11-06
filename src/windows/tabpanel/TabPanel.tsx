@@ -2,7 +2,7 @@ import { For, Show } from "solid-js";
 import { AssetIcon } from "../../components/AssetIcon";
 import { eventSignal } from "../../lib/events";
 import { finishCalibration, getLive, getOverlayMode, setCosmic, toggleTimer } from "../../lib/ipc";
-import { countdown } from "../../lib/timer";
+import { countdown, goldDiff } from "../../lib/timer";
 import type { LiveEnemy } from "../../lib/types/LiveEnemy";
 import type { SpellView } from "../../lib/types/SpellView";
 import "./tabpanel.css";
@@ -30,6 +30,14 @@ export function TabPanel() {
           </button>
         </div>
       </Show>
+      <Show when={live()?.team_gold}>
+        {(t) => (
+          <div class="tp-team" title="Item gold (full item prices), your team minus theirs">
+            <span>Team</span>
+            <span class={t().ally - t().enemy >= 0 ? "tp-up" : "tp-down"}>{goldDiff(t().ally - t().enemy)}</span>
+          </div>
+        )}
+      </Show>
       <Show
         when={(live()?.enemies.length ?? 0) > 0}
         fallback={
@@ -45,22 +53,34 @@ export function TabPanel() {
           </For>
         }
       >
-        <For each={live()!.enemies}>{(e) => <EnemyRow enemy={e} />}</For>
+        <For each={live()!.enemies}>
+          {(e) => <EnemyRow enemy={e} timers={live()!.timers_enabled} gold={live()!.team_gold != null} />}
+        </For>
       </Show>
     </div>
   );
 }
 
-function EnemyRow(props: { enemy: LiveEnemy }) {
+function EnemyRow(props: { enemy: LiveEnemy; timers: boolean; gold: boolean }) {
   const e = () => props.enemy;
   return (
     <div class={`tp-row ${e().dead ? "tp-row--dead" : ""}`}>
       <AssetIcon path={e().champion.icon} name={e().champion.name} class="tp-champ" decorative />
-      <For each={e().spells}>{(s) => <SpellButton champion={e().key} championName={e().champion.name} spell={s} />}</For>
-      <label class={`tp-ci ${e().cosmic ? "tp-ci--on" : ""}`} title={`${e().champion.name} has Cosmic Insight (+18 summoner spell haste)`}>
-        <input type="checkbox" checked={e().cosmic} onChange={(ev) => void setCosmic(e().key, ev.currentTarget.checked)} />
-        <span aria-hidden="true">CI</span>
-      </label>
+      <Show when={props.gold}>
+        <span
+          class={`tp-gold ${e().lane_gold == null ? "" : e().lane_gold! >= 0 ? "tp-up" : "tp-down"}`}
+          title={e().lane_gold == null ? "Lane opponent unknown" : `Your laner's item gold vs ${e().champion.name}`}
+        >
+          {e().lane_gold == null ? "–" : goldDiff(e().lane_gold!)}
+        </span>
+      </Show>
+      <Show when={props.timers}>
+        <For each={e().spells}>{(s) => <SpellButton champion={e().key} championName={e().champion.name} spell={s} />}</For>
+        <label class={`tp-ci ${e().cosmic ? "tp-ci--on" : ""}`} title={`${e().champion.name} has Cosmic Insight (+18 summoner spell haste)`}>
+          <input type="checkbox" checked={e().cosmic} onChange={(ev) => void setCosmic(e().key, ev.currentTarget.checked)} />
+          <span aria-hidden="true">CI</span>
+        </label>
+      </Show>
     </div>
   );
 }

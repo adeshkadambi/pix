@@ -160,12 +160,13 @@ fn emit_mode(app: &AppHandle, mode: OverlayMode) {
 pub fn game_started(app: &AppHandle) {
     place(app);
     let state = app.state::<AppState>();
-    let (timers_on, key) = {
+    let (timers_on, gold_on, key) = {
         let c = state.config.lock().unwrap();
-        (c.flags.overlay_timers, c.scoreboard_key.clone())
+        (c.flags.overlay_timers, c.flags.overlay_gold, c.scoreboard_key.clone())
     };
     let mut rt = state.overlay.lock().unwrap();
-    if timers_on && rt.tab_watch.is_none() {
+    // The tab panel carries both gray features: spell timers and lane gold.
+    if (timers_on || gold_on) && rt.tab_watch.is_none() {
         match win32::virtual_key(&key) {
             Some(vk) => rt.tab_watch = Some(TabWatch::start(app.clone(), vk)),
             None => tracing::warn!("scoreboard key {key:?} isn't supported; tab panel disabled"),

@@ -110,10 +110,14 @@ async fn redraw(app: &AppHandle) -> bool {
     let Some(http) = state.lcu_http() else { return false };
     let Ok(catalog) = profile::catalog(app, &http).await else { return false };
     let draft = state.draft.lock().unwrap().view.clone();
+    let features = {
+        let flags = &state.config.lock().unwrap().flags;
+        view::OverlayFeatures { timers: flags.overlay_timers, gold: flags.overlay_gold }
+    };
     let view = {
         let mut rt = state.live.lock().unwrap();
         let Some(game) = rt.last_game.as_ref() else { return false };
-        let view = view::build_view(game, draft.as_ref(), &rt.feed, &rt.timers, &catalog, &dd, rt.window_mode);
+        let view = view::build_view(game, draft.as_ref(), &rt.feed, &rt.timers, &catalog, &dd, rt.window_mode, features);
         if rt.view.as_ref() == Some(&view) {
             return true;
         }

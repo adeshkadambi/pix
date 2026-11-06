@@ -6,6 +6,10 @@ use ts_rs::TS;
 
 use crate::builds::draft::{DraftView, RunePageView, ThreatView};
 use crate::ddragon::DData;
+use std::collections::HashMap;
+
+use crate::builds::Role;
+use crate::game::gold;
 use crate::game::purchases::PurchaseFeed;
 use crate::game::spells::{self, TimerBook};
 use crate::lcu::catalog::{Catalog, Icon};
@@ -93,6 +97,23 @@ pub struct LiveEnemy {
     /// You ticked Cosmic Insight for this enemy.
     pub cosmic: bool,
     pub haste: u32,
+    /// Your laner's item gold minus this enemy's (gold feature on and lane known).
+    pub lane_gold: Option<i32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export)]
+pub struct TeamGold {
+    /// Item gold (full item prices), not total gold earned.
+    pub ally: u32,
+    pub enemy: u32,
+}
+
+/// Which gray overlay features are on (SPEC §2).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct OverlayFeatures {
+    pub timers: bool,
+    pub gold: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
@@ -108,6 +129,10 @@ pub struct LiveView {
     pub purchases: Vec<PurchaseView>,
     pub enemies: Vec<LiveEnemy>,
     pub window_mode: Option<WindowMode>,
+    /// Summoner timers are on (the tab panel shows spell buttons).
+    pub timers_enabled: bool,
+    /// Team item gold, when the gold feature is on.
+    pub team_gold: Option<TeamGold>,
 }
 
 fn champion_icon(p: &Player, catalog: &Catalog, dd: &DData) -> Icon {
@@ -183,8 +208,10 @@ pub fn build_view(
     catalog: &Catalog,
     dd: &DData,
     window_mode: Option<WindowMode>,
+    features: OverlayFeatures,
 ) -> LiveView {
     let rift = game.is_summoners_rift();
+    let gold = features.gold.then(|| gold::summarize(game, dd, &draft_roles(draft, dd)));
     let me = game.me();
     let my_key = me.and_then(|m| dd.champion_key(m.ddragon_id()));
 
@@ -243,10 +270,25 @@ pub fn build_view(
                 spells: spell_views(p, game.game_data.game_time, timers, catalog, dd),
                 cosmic: timers.cosmic(p.ddragon_id()),
                 haste: enemy_haste(p, timers, dd),
+                lane_gold: gold.as_ref().and_then(|g| g.lanes.get(p.ddragon_id()).copied()),
             })
             .collect(),
         window_mode,
+        timers_enabled: features.timers,
+        team_gold: gold.as_ref().map(|g| TeamGold { ally: g.ally_total, enemy: g.enemy_total }),
     }
+}
+
+/// Roles from champ select (your team's assigned roles, enemies' inferred ones), by Data Dragon
+/// champion id. Used to pair lanes when the Live Client gives no position.
+fn draft_roles(draft: Option<&DraftView>, dd: &DData) -> HashMap<String, Role> {
+    let Some(d) = draft else { return HashMap::new() };
+    let id = |icon: &Option<Icon>| icon.as_ref().and_then(|c| dd.champions.get(&c.id)).map(|c| c.id.clone());
+    d.allies
+        .iter()
+        .filter_map(|a| Some((id(&a.champion)?, a.role?)))
+        .chain(d.enemies.iter().filter_map(|e| Some((id(&e.champion)?, e.inferred?.role))))
+        .collect()
 }
 
 /// League's `Config/game.cfg` → `[General] WindowMode=` (0 full screen, 1 windowed, 2 borderless).
@@ -342,7 +384,7 @@ mod tests {
 
     #[test]
     fn builds_the_live_view() {
-        let v = build_view(&game(), Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), Some(WindowMode::Borderless));
+        let v = build_view(&game(), Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), Some(WindowMode::Borderless), OverlayFeatures::default());
         let me = v.me.unwrap();
         assert_eq!((me.champion.name.as_str(), me.level, me.kills, me.deaths, me.assists, me.cs, me.gold), ("Briar", 11, 6, 2, 5, 142, 1130));
         assert!(v.summoners_rift && v.build_note.is_none());
@@ -364,15 +406,15 @@ mod tests {
 
     #[test]
     fn no_build_for_another_champion_or_off_the_rift() {
-        let v = build_view(&game(), Some(&draft(1)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None);
+        let v = build_view(&game(), Some(&draft(1)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default());
         assert!(v.build.is_none());
         assert_eq!(v.build_note.as_deref(), Some("The champ select build was for Briar."));
         let mut aram = game();
         aram.game_data.map_number = 12;
         aram.game_data.game_mode = "ARAM".into();
-        let v = build_view(&aram, Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None);
+        let v = build_view(&aram, Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default());
         assert!(v.build.is_none() && v.threats.is_empty() && !v.summoners_rift);
-        let v = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None);
+        let v = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default());
         assert_eq!(v.build_note.as_deref(), Some("No build from champ select for this game."));
     }
 
@@ -382,7 +424,7 @@ mod tests {
         // Viego's Flash, clicked at 18:20 (1100 s) with no haste: 300 s.
         timers.toggle("Viego", 0, 1100.0, 300.0);
         timers.set_cosmic("Viego", true);
-        let v = build_view(&game(), None, &PurchaseFeed::default(), &timers, &catalog(), &dd(), None);
+        let v = build_view(&game(), None, &PurchaseFeed::default(), &timers, &catalog(), &dd(), None, OverlayFeatures::default());
         let viego = v.enemies.iter().find(|e| e.key == "Viego").unwrap();
         assert!(viego.cosmic);
         assert_eq!(viego.haste, 18);
@@ -394,6 +436,20 @@ mod tests {
         assert!(!smite.trackable && smite.remaining.is_none());
         let malphite = v.enemies.iter().find(|e| e.key == "Malphite").unwrap();
         assert!(!malphite.cosmic && malphite.spells[0].remaining.is_none());
+    }
+
+    #[test]
+    fn gold_only_when_the_feature_is_on() {
+        let mut d = dd();
+        for (id, gold) in [(3078, 3333), (3748, 3300), (3047, 1200), (1036, 350), (2055, 75), (3153, 3200)] {
+            d.items.insert(id, crate::ddragon::ItemInfo { name: String::new(), tags: vec![], description: String::new(), gold_total: gold, completed: true, on_rift: true });
+        }
+        let off = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures::default());
+        assert!(off.team_gold.is_none() && off.enemies.iter().all(|e| e.lane_gold.is_none()));
+        let on = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures { timers: true, gold: true });
+        assert!(on.timers_enabled && on.team_gold.is_some());
+        let viego = on.enemies.iter().find(|e| e.key == "Viego").unwrap();
+        assert_eq!(viego.lane_gold, Some(8608 - 3200), "Briar's items vs Viego's");
     }
 
     #[test]
