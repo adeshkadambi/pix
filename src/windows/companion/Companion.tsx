@@ -1,6 +1,6 @@
-import { createEffect, createSignal, For, Match, on, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, on, onCleanup, Switch } from "solid-js";
 import { Logo } from "../../components/Logo";
-import { eventSignal } from "../../lib/events";
+import { eventSignal, on as on_ } from "../../lib/events";
 import { getClientStatus } from "../../lib/ipc";
 import type { Phase } from "../../lib/types/Phase";
 import { About } from "./About";
@@ -39,6 +39,12 @@ function tabForPhase(phase: Phase): Tab {
 export function Companion() {
   const status = eventSignal("client-status", getClientStatus);
   const [view, setView] = createSignal<View>("profile");
+
+  // A new draft view (champ select) brings the Draft tab forward from Profile.
+  const unlistenDraft = on_("draft", (d) => {
+    if (d && view() === "profile") setView("draft");
+  });
+  onCleanup(() => void unlistenDraft.then((fn) => fn()));
 
   // Follow the game phase, but only when it changes, so a manual tab choice sticks.
   createEffect(

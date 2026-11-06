@@ -12,12 +12,14 @@ use super::gameflow::{is_summoners_rift, parse_phase};
 use super::http::LcuHttp;
 use super::lockfile::Lockfile;
 use super::{discovery, ws};
+use crate::builds::draft;
 use crate::events::{ClientStatus, Phase};
 use crate::state::{AppState, update_client_status};
 use crate::{ddragon, profile, riot_tls};
 
 const POLL: Duration = Duration::from_secs(2);
 const PHASE_URI: &str = "/lol-gameflow/v1/gameflow-phase";
+const CHAMP_SELECT_URI: &str = "/lol-champ-select/v1/session";
 
 pub fn spawn(app: AppHandle) {
     tauri::async_runtime::spawn(supervise(app));
@@ -64,21 +66,24 @@ async fn run_session(app: &AppHandle, http: &LcuHttp, lockfile: &Lockfile, lock_
     on_phase_change(app, http, None, phase).await;
     profile::refresh_soon(app);
     load_ddragon_for_client(app, http);
+    #[cfg(debug_assertions)]
+    load_draft_fixture(app);
 
     let mut tick = tokio::time::interval(POLL);
     loop {
         tokio::select! {
             frame = socket.next() => match frame {
                 Some(Ok(Message::Text(text))) => {
-                    if let Some(event) = ws::parse_frame(&text)
-                        && event.uri == PHASE_URI
-                    {
+                    let Some(event) = ws::parse_frame(&text) else { continue };
+                    if event.uri == PHASE_URI {
                         let new = event.data.as_str().map(parse_phase).unwrap_or_default();
                         let old = app.state::<AppState>().client.lock().unwrap().phase;
                         if new != old {
                             update_client_status(app, |s| s.phase = new);
                             on_phase_change(app, http, Some(old), new).await;
                         }
+                    } else if event.uri == CHAMP_SELECT_URI && event.event_type != "Delete" {
+                        draft::on_session(app, &event.data);
                     }
                 }
                 Some(Ok(Message::Close(_))) | None => break,
@@ -116,6 +121,15 @@ async fn on_phase_change(app: &AppHandle, http: &LcuHttp, old: Option<Phase>, ne
     };
     update_client_status(app, |s| s.summoners_rift = rift);
 
+    // Draft pipeline: a fresh draft per champ select, seeded from the current session.
+    if new == Phase::ChampSelect {
+        draft::reset(app);
+        match http.get_json::<serde_json::Value>(CHAMP_SELECT_URI).await {
+            Ok(session) => draft::on_session(app, &session),
+            Err(e) => tracing::debug!("no champ select session yet: {e}"),
+        }
+    }
+
     // Game log (SPEC §5.12): a rank snapshot before the game, and the LP notification after it.
     if new == Phase::ChampSelect {
         profile::snapshot_soon(app);
@@ -150,6 +164,7 @@ fn load_ddragon_for_client(app: &AppHandle, http: &LcuHttp) {
     let (app, http) = (app.clone(), http.clone());
     tauri::async_runtime::spawn(async move {
         let patch = http.get_json::<String>("/lol-patch/v1/game-version").await.ok().and_then(|v| ddragon::patch_of(&v));
+        *app.state::<AppState>().patch.lock().unwrap() = patch.clone();
         let current = app.state::<AppState>().ddragon();
         if let (Some(p), Some(dd)) = (&patch, &current)
             && dd.version.starts_with(&format!("{p}."))
@@ -157,6 +172,28 @@ fn load_ddragon_for_client(app: &AppHandle, http: &LcuHttp) {
             return;
         }
         load_ddragon(&app, patch.as_deref()).await;
+    });
+}
+
+/// Debug builds only: `PIX_DRAFT_FIXTURE=<session.json>` feeds a recorded champ select session into
+/// the draft pipeline (treated as Summoner's Rift), to work on the Draft screen without a real draft.
+#[cfg(debug_assertions)]
+fn load_draft_fixture(app: &AppHandle) {
+    let Ok(path) = std::env::var("PIX_DRAFT_FIXTURE") else { return };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // Give Data Dragon a moment to load first.
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        match tokio::fs::read_to_string(&path).await.map(|t| serde_json::from_str::<serde_json::Value>(&t)) {
+            Ok(Ok(session)) => {
+                tracing::info!("draft fixture loaded from {path}");
+                draft::reset(&app);
+                app.state::<AppState>().draft.lock().unwrap().force_rift = true;
+                draft::on_session(&app, &session);
+            }
+            Ok(Err(e)) => tracing::warn!("draft fixture isn't JSON: {e}"),
+            Err(e) => tracing::warn!("draft fixture unreadable: {e}"),
+        }
     });
 }
 

@@ -4,12 +4,14 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { createSignal, onCleanup, type Accessor } from "solid-js";
 import type { ClientStatus } from "./types/ClientStatus";
 import type { Config } from "./types/Config";
+import type { DraftView } from "./types/DraftView";
 import type { ProfileView } from "./types/ProfileView";
 
 export interface EventMap {
   "client-status": ClientStatus;
   "config-changed": Config;
   profile: ProfileView | null;
+  draft: DraftView | null;
 }
 
 export function on<K extends keyof EventMap>(

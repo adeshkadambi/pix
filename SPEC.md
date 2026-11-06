@@ -172,6 +172,12 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
   ```
   `opgg/notation.rs` reads the `class Name: f1,f2,…` header lines into a field-order table, then runs a recursive-descent parser over `Name(args)`, `[list]`, numbers, `"strings"` and `null|true|false`, mapping each argument to its field by position. The output is a `serde_json::Value`, which serde then converts to typed structs. It's tested against the real samples captured while planning (Ahri mid, MONKEYKING jungle, KAISA adc).
 - **Matchup:** `tools/call` `lol_get_lane_matchup_guide` with `{"my_champion":"AHRI","opponent_champion":"ZED","position":"mid"}`. The reply text is **JSON**. Used fields: `data.summary.average_stats.win_rate`, `core_items[]`, `boots[]`, `starter_items[]`, `summoner_spells[]`, `rune_pages[].builds[]`, `single_items[].{depth,items[]}`, `last_items[]`, `counters[]`, all with `play` and `win`. This only fits the **lane** opponent (same position).
+- **What each tool really returns (checked live, M2):**
+  - The analysis tool gives **one** top pick each for core items, boots, starter, spells, runes and skill order (`skill_masteries`, reusing the `CoreItems` class with letters). The ranked lists are `fourth_items[]`, `fifth_items[]` and `sixth_items[]`, which are also requested. `last_items[]` just repeats the core items.
+  - The matchup tool gives ranked lists for everything (`runes[]`, `core_items[]`, `boots[]`, `skill_masteries[]`, `single_items[]` by depth). Its `summary.average_stats` is the champion's **overall** record. The head-to-head prior comes from `counters[]` for the opponent, if it has 30 or more games.
+  - So before the lane opponent locks, Draft shows the single top picks with their game counts, plus ranked 4th/5th/6th item options. After the lock it shows 3 ranked options per section.
+  - Role rates and damage type come back whatever `position` is asked for. Unknown champions return a JSON-RPC error. Whole numbers appear where decimals are expected (`Stats(1)`), and the server can add fields nobody asked for (`CountersMeta`).
+- **Anti-tank picks** use percent penetration or armor/MR shred only ("% Armor Penetration", "reduces the target's Armor by"). Data Dragon tags lethality and flat magic pen the same way, and those are weak against tanks.
 - **Cache:** results are stored in memory and on disk (`app_cache_dir/builds/opgg/<patch>/<key>.json`) for 24 h. Expected cold latency is roughly 300–1000 ms, which prefetch hides; warm latency is under 5 ms.
 
 ### 5.5 Ranking and comp profile

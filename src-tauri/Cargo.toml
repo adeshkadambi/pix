@@ -33,6 +33,7 @@ rustls-pki-types = { version = "1.15.1", features = ["std"] }
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 regex = "1.13.1"
 rusqlite = { version = "0.41.1", features = ["bundled"] }
+async-trait = "0.1.92"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

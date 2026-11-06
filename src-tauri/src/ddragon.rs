@@ -23,11 +23,90 @@ pub enum DDragonError {
     NoVersion,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DData {
     pub version: String,
     /// Numeric champion key → Data Dragon id, e.g. 62 → "MonkeyKing".
     pub champion_ids: HashMap<i32, String>,
+    /// Numeric champion key → name and class tags.
+    pub champions: HashMap<i32, ChampInfo>,
+    /// Item id → name, tags, plain description and cost.
+    pub items: HashMap<u32, ItemInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChampInfo {
+    /// Data Dragon id, e.g. "MonkeyKing". Uppercased, it's the OP.GG champion key.
+    pub id: String,
+    pub name: String,
+    /// Class tags: Assassin, Fighter, Mage, Marksman, Support, Tank.
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ItemInfo {
+    pub name: String,
+    pub tags: Vec<String>,
+    /// Description with HTML tags removed.
+    pub description: String,
+    pub gold_total: u32,
+    /// Finished item: builds into nothing else.
+    pub completed: bool,
+    /// Buyable on Summoner's Rift (map 11).
+    pub on_rift: bool,
+}
+
+/// Strips HTML tags from Data Dragon descriptions.
+pub fn strip_html(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut in_tag = false;
+    for c in s.chars() {
+        match c {
+            '<' => {
+                in_tag = true;
+                out.push(' ');
+            }
+            '>' => in_tag = false,
+            _ if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn champions(champion_json: &Value) -> HashMap<i32, ChampInfo> {
+    let Some(data) = champion_json.get("data").and_then(Value::as_object) else {
+        return HashMap::new();
+    };
+    data.values()
+        .filter_map(|c| {
+            let key = c.get("key")?.as_str()?.parse().ok()?;
+            let tags = c.get("tags").and_then(Value::as_array).map(|t| t.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+            Some((key, ChampInfo { id: c.get("id")?.as_str()?.to_owned(), name: c.get("name")?.as_str()?.to_owned(), tags }))
+        })
+        .collect()
+}
+
+fn items(item_json: &Value) -> HashMap<u32, ItemInfo> {
+    let Some(data) = item_json.get("data").and_then(Value::as_object) else {
+        return HashMap::new();
+    };
+    data.iter()
+        .filter_map(|(id, it)| {
+            let into_empty = it.get("into").and_then(Value::as_array).is_none_or(|a| a.is_empty());
+            Some((
+                id.parse().ok()?,
+                ItemInfo {
+                    name: it.get("name")?.as_str()?.to_owned(),
+                    tags: it.get("tags").and_then(Value::as_array).map(|t| t.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect()).unwrap_or_default(),
+                    description: strip_html(it.get("description").and_then(Value::as_str).unwrap_or_default()),
+                    gold_total: it.pointer("/gold/total").and_then(Value::as_u64).unwrap_or(0) as u32,
+                    completed: into_empty,
+                    on_rift: it.pointer("/maps/11").and_then(Value::as_bool).unwrap_or(false),
+                },
+            ))
+        })
+        .collect()
 }
 
 impl DData {
@@ -106,14 +185,16 @@ pub async fn load(client: &reqwest::Client, root: &Path, patch: Option<&str>) ->
     }
     .ok_or(DDragonError::NoVersion)?;
     let dir: PathBuf = root.join(&version);
-    let mut champion = Value::Null;
+    let (mut champion, mut item) = (Value::Null, Value::Null);
     for file in FILES {
         let v = cached_file(client, &dir, &version, file).await?;
-        if file == "champion.json" {
-            champion = v;
+        match file {
+            "champion.json" => champion = v,
+            "item.json" => item = v,
+            _ => {}
         }
     }
-    Ok(DData { champion_ids: champion_ids(&champion), version })
+    Ok(DData { champion_ids: champion_ids(&champion), champions: champions(&champion), items: items(&item), version })
 }
 
 #[cfg(test)]
@@ -146,6 +227,31 @@ mod tests {
         let ids = champion_ids(&json);
         assert_eq!(ids.get(&62).map(String::as_str), Some("MonkeyKing"));
         assert_eq!(ids.get(&145).map(String::as_str), Some("Kaisa"));
+    }
+
+    #[test]
+    fn parses_champions_and_items() {
+        let champs = champions(&serde_json::json!({"data": {
+            "Malphite": {"id": "Malphite", "key": "54", "name": "Malphite", "tags": ["Tank", "Mage"]}
+        }}));
+        assert_eq!(champs[&54].tags, vec!["Tank", "Mage"]);
+        let its = items(&serde_json::json!({"data": {
+            "3165": {"name": "Morellonomicon", "tags": ["SpellDamage", "Health"],
+                     "description": "<mainText><stats>+75 Ability Power</stats><br><passive>Affliction</passive>: inflicts <status>40% Grievous Wounds</status></mainText>",
+                     "gold": {"total": 2950}, "maps": {"11": true, "12": true}},
+            "3916": {"name": "Oblivion Orb", "into": ["3165"], "tags": [], "description": "", "gold": {"total": 800}, "maps": {"11": true}}
+        }}));
+        let morello = &its[&3165];
+        assert!(morello.completed && morello.on_rift);
+        assert_eq!(morello.gold_total, 2950);
+        assert!(morello.description.contains("40% Grievous Wounds"));
+        assert!(!morello.description.contains('<'));
+        assert!(!its[&3916].completed);
+    }
+
+    #[test]
+    fn strips_html() {
+        assert_eq!(strip_html("<b>12</b> Summoner Spell Haste<br>x"), "12 Summoner Spell Haste x");
     }
 
     #[test]

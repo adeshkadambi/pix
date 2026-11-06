@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use tauri::{AppHandle, Manager};
 
 use crate::asset_protocol::AssetCache;
+use crate::builds::draft::{BuildService, DraftRuntime};
 use crate::config::Config;
 use crate::db::Db;
 use crate::ddragon::DData;
@@ -29,6 +30,10 @@ pub struct AppState {
     pub ddragon: RwLock<Option<Arc<DData>>>,
     pub assets: AssetCache,
     pub public_http: reqwest::Client,
+    /// Client patch, e.g. "16.22", for cache keys.
+    pub patch: Mutex<Option<String>>,
+    pub draft: Mutex<DraftRuntime>,
+    pub builds: Arc<BuildService>,
 }
 
 impl AppState {
@@ -39,6 +44,7 @@ impl AppState {
         db: Option<Db>,
         public_http: reqwest::Client,
     ) -> Self {
+        let builds = Arc::new(BuildService::new(public_http.clone(), cache_dir.join("builds")));
         Self {
             db,
             config: Mutex::new(config),
@@ -50,7 +56,10 @@ impl AppState {
             profile: Mutex::new(None),
             ddragon: RwLock::new(None),
             assets: AssetCache::new(),
+            builds,
             public_http,
+            patch: Mutex::new(None),
+            draft: Mutex::new(DraftRuntime::default()),
         }
     }
 

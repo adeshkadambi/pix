@@ -1,6 +1,7 @@
 //! Pix backend: app setup and the commands the frontend calls.
 
 mod asset_protocol;
+mod builds;
 mod config;
 mod db;
 mod ddragon;
@@ -49,6 +50,23 @@ fn get_profile(state: State<'_, AppState>) -> Option<ProfileView> {
 #[tauri::command]
 async fn refresh_profile(app: AppHandle) -> Result<ProfileView, String> {
     profile::refresh(&app).await
+}
+
+#[tauri::command]
+fn get_draft(state: State<'_, AppState>) -> Option<builds::draft::DraftView> {
+    state.draft.lock().unwrap().view.clone()
+}
+
+/// Override an enemy's inferred role (`None` clears the override).
+#[tauri::command]
+fn set_enemy_role(app: AppHandle, cell_id: i64, role: Option<builds::Role>) {
+    builds::draft::set_enemy_role(&app, cell_id, role);
+}
+
+/// Your role in blind pick, where the client doesn't assign one.
+#[tauri::command]
+fn set_my_role(app: AppHandle, role: builds::Role) {
+    builds::draft::set_my_role(&app, role);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -110,7 +128,10 @@ pub fn run() {
             set_flag,
             get_client_status,
             get_profile,
-            refresh_profile
+            refresh_profile,
+            get_draft,
+            set_enemy_role,
+            set_my_role
         ])
         .run(tauri::generate_context!())
         .expect("error while running Pix");

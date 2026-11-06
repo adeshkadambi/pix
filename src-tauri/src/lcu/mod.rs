@@ -1,6 +1,7 @@
 //! League client connection (SPEC §5.1).
 
 pub mod catalog;
+pub mod champ_select;
 pub mod discovery;
 pub mod gameflow;
 pub mod http;

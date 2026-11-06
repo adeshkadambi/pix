@@ -32,6 +32,14 @@ pub struct Catalog {
     champions: HashMap<i32, Icon>,
     items: HashMap<i32, Icon>,
     spells: HashMap<i32, Icon>,
+    /// Runes and stat shards, plus rune trees (perk styles).
+    perks: HashMap<i32, Icon>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawStyles {
+    #[serde(default)]
+    styles: Vec<RawEntry>,
 }
 
 fn index(entries: Vec<RawEntry>) -> HashMap<i32, Icon> {
@@ -46,12 +54,26 @@ fn index(entries: Vec<RawEntry>) -> HashMap<i32, Icon> {
 
 impl Catalog {
     pub async fn fetch(http: &LcuHttp) -> Result<Self, LcuError> {
-        let (champions, items, spells) = tokio::try_join!(
+        let (champions, items, spells, perks, styles) = tokio::try_join!(
             http.get_json::<Vec<RawEntry>>("/lol-game-data/assets/v1/champion-summary.json"),
             http.get_json::<Vec<RawEntry>>("/lol-game-data/assets/v1/items.json"),
             http.get_json::<Vec<RawEntry>>("/lol-game-data/assets/v1/summoner-spells.json"),
+            http.get_json::<Vec<RawEntry>>("/lol-game-data/assets/v1/perks.json"),
+            http.get_json::<RawStyles>("/lol-game-data/assets/v1/perkstyles.json"),
         )?;
-        Ok(Self { champions: index(champions), items: index(items), spells: index(spells) })
+        let mut perks = index(perks);
+        perks.extend(index(styles.styles));
+        Ok(Self { champions: index(champions), items: index(items), spells: index(spells), perks })
+    }
+
+    /// A rune, stat shard or rune tree.
+    pub fn perk(&self, id: i32) -> Icon {
+        self.perks.get(&id).cloned().unwrap_or_else(|| Icon { id, name: format!("Rune {id}"), icon: String::new() })
+    }
+
+    /// An item, even for id 0 (used where a slot is never empty).
+    pub fn item_icon(&self, id: i32) -> Icon {
+        self.item(id).unwrap_or_else(|| Icon { id, name: "Empty".into(), icon: String::new() })
     }
 
     pub fn champion(&self, id: i32) -> Icon {
@@ -85,6 +107,7 @@ impl Catalog {
             champions: index(serde_json::from_str(champions).unwrap()),
             items: index(serde_json::from_str(items).unwrap()),
             spells: index(serde_json::from_str(spells).unwrap()),
+            perks: HashMap::new(),
         }
     }
 }

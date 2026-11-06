@@ -1,0 +1,331 @@
+/* Draft screen, following design/Draft.dc.html. Shares icon and text helpers with profile.css. */
+.draft {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Bans */
+.bans {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ban-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ban-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 3px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: line-through;
+  text-decoration-color: var(--accent);
+}
+.ban-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 8px;
+  filter: grayscale(0.7);
+}
+
+/* Columns */
+.draft-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+.team {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.team-title {
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-small);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.pick--me {
+  background: var(--raised);
+  border-color: var(--accent);
+}
+.pick--opponent {
+  border-color: var(--violet);
+}
+.pick-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 12px;
+}
+.pick-icon--empty {
+  flex: none;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+}
+.pick-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pick-sub {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pick-sub--me {
+  color: var(--accent-light);
+}
+.role-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.role-chip:hover {
+  border-color: var(--border-tile-strong);
+}
+.role-chip--manual {
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+.role-conf {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 11px;
+}
+
+/* Build panel */
+.build {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+.build-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.build-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.build-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.build-title {
+  font-size: 24px;
+}
+.eyebrow--accent {
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.build-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.role-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.build-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 16px;
+}
+.panel {
+  background: var(--card-inner);
+  border-radius: var(--r-small);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.panel-title {
+  margin: 4px 0 0;
+  font: 600 12px var(--font-body);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.panel-title:first-child {
+  margin-top: 0;
+}
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.option-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.arrow {
+  color: var(--text-muted);
+}
+.item-tile {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-tile);
+  border: 1px solid var(--border-tile-strong);
+  background: var(--tile);
+  font-size: 10px;
+}
+.item-tile--small {
+  width: 28px;
+  height: 28px;
+}
+.inline-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.chip-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.skill-order {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* Runes */
+.rune-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.rune-option:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.rune-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.keystone {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--tile);
+  font-size: 10px;
+}
+.keystone--small {
+  width: 32px;
+  height: 32px;
+  border-width: 1px;
+  border-color: var(--border-tile-strong);
+}
+.rune-minor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.rune-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--tile);
+  font-size: 8px;
+}
+.shard-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tile);
+  font-size: 7px;
+}
+.rune-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--border-strong);
+}
+
+/* Situational and threats */
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.why-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.why-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.threats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+.threat {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: var(--r-small);
+  background: var(--card-inner);
+}
+.threat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 10px;
+}
+.threat-answers {
+  display: flex;
+  gap: 4px;
+}
