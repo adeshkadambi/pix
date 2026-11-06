@@ -6,6 +6,7 @@ pub mod discovery;
 pub mod gameflow;
 pub mod http;
 pub mod lockfile;
+pub mod runes;
 pub mod supervisor;
 pub mod ws;
 

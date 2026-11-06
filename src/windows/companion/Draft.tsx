@@ -2,7 +2,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { AssetIcon } from "../../components/AssetIcon";
 import { eventSignal } from "../../lib/events";
-import { chooseBuild, getDraft, setEnemyRole, setMyRole } from "../../lib/ipc";
+import { chooseBuild, getDraft, importRunes, setEnemyRole, setMyRole } from "../../lib/ipc";
 import type { AllyView } from "../../lib/types/AllyView";
 import type { BuildView } from "../../lib/types/BuildView";
 import type { ChosenBuild } from "../../lib/types/ChosenBuild";
@@ -247,6 +247,18 @@ function buildText(b: BuildView, chosen: ChosenBuild): string {
 function BuildDetails(props: { build: BuildView; chosen: ChosenBuild }) {
   const b = () => props.build;
   const [copied, setCopied] = createSignal(false);
+  // Clicking a rune page follows it in game and imports it into the client.
+  const [runeStatus, setRuneStatus] = createSignal<{ ok: boolean; text: string }>();
+  const pickRunes = async (i: number) => {
+    void chooseBuild("runes", i);
+    setRuneStatus({ ok: true, text: "Importing…" });
+    try {
+      const name = await importRunes(i);
+      setRuneStatus({ ok: true, text: `Imported as "${name}"` });
+    } catch (e) {
+      setRuneStatus({ ok: false, text: String(e) });
+    }
+  };
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(buildText(b(), props.chosen));
@@ -283,8 +295,11 @@ function BuildDetails(props: { build: BuildView; chosen: ChosenBuild }) {
       <div class="build-grid">
         <div class="panel">
           <h3 class="panel-title">Runes</h3>
+          <span class={runeStatus()?.ok === false ? "error small" : "muted small"}>
+            {runeStatus()?.text ?? "Click a page to import it into the client."}
+          </span>
           <For each={b().runes}>
-            {(r, i) => <RuneOption page={r} selected={i() === props.chosen.runes} onSelect={() => void chooseBuild("runes", i())} />}
+            {(r, i) => <RuneOption page={r} selected={i() === props.chosen.runes} onSelect={() => void pickRunes(i())} />}
           </For>
         </div>
         <div class="panel">
@@ -374,7 +389,7 @@ function Selectable(props: { selected: boolean; onSelect: () => void; label: str
       type="button"
       class={`selectable ${props.class} ${props.selected ? "selectable--on" : ""}`}
       aria-pressed={props.selected}
-      title={props.selected ? "Following this in game" : `Follow this ${props.label} in game`}
+      title={props.selected ? "Selected" : `Select this ${props.label}`}
       onClick={() => props.onSelect()}
     >
       {props.children}

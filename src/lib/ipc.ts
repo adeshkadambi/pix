@@ -31,6 +31,9 @@ export const setEnemyRole = (cellId: number, role: Role | null) => invoke<void>(
 /** Your role in blind pick. */
 export const setMyRole = (role: Role) => invoke<void>("set_my_role", { role });
 
+/** Import the `index`th rune page into the client (your click only). Returns the page name. */
+export const importRunes = (index: number) => invoke<string>("import_runes", { index });
+
 /** Pick which rune page or core set to follow in game. */
 export const chooseBuild = (kind: "runes" | "core", index: number) => invoke<void>("choose_build", { kind, index });
 

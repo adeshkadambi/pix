@@ -697,6 +697,31 @@ async fn suggestions(
     }
 }
 
+/// Imports the `index`th rune page of the current build into the client (your click in Draft).
+/// Returns the page name that was written.
+pub async fn import_runes(app: &AppHandle, index: u32) -> Result<String, String> {
+    let state = app.state::<AppState>();
+    let (page, name) = {
+        let rt = state.draft.lock().unwrap();
+        let page = rt.build_set.as_ref().and_then(|b| b.rune_pages.get(index as usize)).map(|r| r.value.clone());
+        let label = rt.view.as_ref().and_then(|v| v.build.as_ref()).map(|b| {
+            let role = match b.role {
+                Role::Top => "Top",
+                Role::Jungle => "Jungle",
+                Role::Mid => "Mid",
+                Role::Adc => "Bot",
+                Role::Support => "Support",
+            };
+            format!("{} {role}", b.champion.name)
+        });
+        (page.ok_or("That rune page isn't available any more.")?, label.unwrap_or_else(|| "Runes".into()))
+    };
+    let http = state.lcu_http().ok_or("League client isn't connected")?;
+    crate::lcu::runes::import(&http, &name, &page).await?;
+    tracing::info!("imported rune page \"{name}\"");
+    Ok(format!("{} {name}", crate::lcu::runes::PAGE_PREFIX))
+}
+
 /// Picks which rune page or core set to follow in game. Re-emits the view without recomputing.
 pub fn choose(app: &AppHandle, kind: &str, index: u32) {
     let state = app.state::<AppState>();

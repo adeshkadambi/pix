@@ -26,7 +26,7 @@ Sources: developer.riotgames.com/docs/lol (Game Integrity, Game Policy), develop
 
 **Technical rules (always on, no exceptions):**
 1. **No game-process access.** No memory reads, no injection, no input simulation, no `OpenProcess` on League processes, and no reading of process command lines (on Windows that reads the process's memory).
-2. **League client API is read-only.** GET requests and WebSocket subscriptions only. No auto-accept, auto-pick, rune/item-set import, or any other write.
+2. **League client API is read-only, with one exception.** GET requests and WebSocket subscriptions only. The exception is **importing a rune page when you click one in Draft** (author's decision in M5): `/lol-perks/` endpoints only, in `lcu/runes.rs` only, never automatic. Pix writes a page named "Pix: …": it updates that page if it exists, else creates one, and if every slot is used it overwrites the current editable page. Still forbidden: auto-accept, auto-pick, item-set import, and any other write.
 3. **Keys are read passively.** TAB is read with `GetAsyncKeyState` polling, only while the League game window is in front. No `RegisterHotKey`, no keyboard or mouse hooks.
 4. **Overlay windows are separate windows.** Topmost, transparent, non-activating (`WS_EX_NOACTIVATE`). No DirectX or graphics hooks. Clicks on the overlay never take focus from the game.
 5. **No de-anonymization.** Don't fetch, store or show names, PUUIDs or ranks of players in champ select. In-game Riot IDs are used only to find "me" in `playerList`, and are never stored.
@@ -45,7 +45,7 @@ Sources: developer.riotgames.com/docs/lol (Game Integrity, Game Policy), develop
 
 Registration: other people use Pix, so it is a product, not a personal tool. The author registers it on the Riot Developer Portal, discloses that it uses the League client API and the Live Client API, and describes the overlay features (summoner timers, gold diff), which ship on by default by the author's choice. Riot personal API keys only cover their owner, so any future Riot web API use for friends (such as filling in older matches) needs a registered product key kept on a server, never inside the app.
 
-CI guard: the build fails if the source contains `OpenProcess|ReadProcessMemory|WriteProcessMemory|SetWindowsHookEx|SendInput|keybd_event|mouse_event|RegisterHotKey|CreateRemoteThread`, or if `lcu/http.rs` issues anything other than GET.
+CI guard: the build fails if the source contains `OpenProcess|ReadProcessMemory|WriteProcessMemory|SetWindowsHookEx|SendInput|keybd_event|mouse_event|RegisterHotKey|CreateRemoteThread`; if any file under `lcu/` other than `lcu/runes.rs` sends anything but GET; or if `lcu/runes.rs` names any client endpoint outside `/lol-perks/`. A self-test proves each rule catches violations.
 
 ## 3. Tech stack
 - **Backend:** Rust, tokio, `reqwest` (rustls), `tokio-tungstenite` (rustls), `serde`/`serde_json`, `regex`, `rmcp` (MCP client; fall back to a small hand-rolled JSON-RPC client if it causes friction), `async-trait`, `thiserror`, `tracing`, `windows` crate (Win32: window styles, `GetAsyncKeyState`, `GetForegroundWindow`, `GetClassNameW`), `ts-rs` (generates TS types).
@@ -148,7 +148,7 @@ pub struct BuildSet {
 pub struct Ranked<T> { pub value: T, pub play: u32, pub win: u32, pub smoothed_wr: f32 }
 pub struct RunePage { pub primary_style: u32, pub sub_style: u32, pub perks: Vec<u32>, pub shards: [u32; 3] }
 ```
-The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent locked), otherwise the base set. The Draft view shows the top build plus 2 alternatives, each with smoothed win rate and game count (rule 7). Its only actions are read-only: copy the build to the clipboard, or open it on op.gg in the system browser. Nothing is sent to the client (rule 2). Situational picks come from the comp profile (5.5). A later Riot API provider implements the same trait and can use all of `DraftContext.enemies`.
+The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent locked), otherwise the base set. The Draft view shows the top build plus 2 alternatives, each with smoothed win rate and game count (rule 7). Its actions: copy the build to the clipboard, open it on op.gg in the system browser, and **click a rune page to import it into the client** (rule 2's one exception). Nothing else is sent to the client. Situational picks come from the comp profile (5.5). A later Riot API provider implements the same trait and can use all of `DraftContext.enemies`.
 
 ### 5.4 OP.GG provider (current data source)
 - **Endpoint:** `https://mcp-api.op.gg/mcp` (MCP over Streamable HTTP, JSON-RPC 2.0). The session is `initialize` → `notifications/initialized` → `tools/call`. Send `Accept: application/json, text/event-stream`. The reply may come as SSE.
@@ -337,4 +337,4 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
 - **Windows and TLS:** the target is Windows only, with Borderless required. TLS is pinned to `riotgames.pem` rather than accepting any certificate. Process discovery is replaced with discovery from Riot's install-settings file.
 - **Layout:** the overlay only shows gold diff and timers. Purchase alerts moved to the companion feed. Click-through comes from TAB-gated panel visibility, not cursor hit-testing.
 - **Compliance:** the policy rules and feature classes in section 2 now apply.
-- **Profile (after the designs):** the embedded OP.GG webview became a native screen built from League client data. The designs' "Send runes to client" and "Save item set" buttons became read-only copy/open actions.
+- **Profile (after the designs):** the embedded OP.GG webview became a native screen built from League client data. The designs' "Send runes to client" and "Save item set" buttons became read-only copy/open actions. In M5, rune import came back as a click on a rune page (rule 2's one exception); item-set import stays out.

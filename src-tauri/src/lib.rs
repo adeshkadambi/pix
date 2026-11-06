@@ -77,6 +77,12 @@ fn choose_build(app: AppHandle, kind: String, index: u32) {
     builds::draft::choose(&app, &kind, index);
 }
 
+/// Imports a rune page from the Draft screen into the client (your click only; SPEC §2 rule 2).
+#[tauri::command]
+async fn import_runes(app: AppHandle, index: u32) -> Result<String, String> {
+    builds::draft::import_runes(&app, index).await
+}
+
 #[tauri::command]
 fn get_live(state: State<'_, AppState>) -> Option<live::view::LiveView> {
     state.live.lock().unwrap().view.clone()
@@ -185,6 +191,7 @@ pub fn run() {
             set_enemy_role,
             set_my_role,
             choose_build,
+            import_runes,
             get_live,
             toggle_timer,
             get_review,

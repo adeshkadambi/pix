@@ -25,6 +25,12 @@ impl LcuHttp {
         Self { client, base: lockfile.https_base(), auth: lockfile.basic_auth() }
     }
 
+    /// Connection details for `lcu/runes.rs`, the only module allowed to write (rune page
+    /// import, SPEC §2 rule 2). This file itself only ever sends GET.
+    pub(super) fn parts(&self) -> (&reqwest::Client, &str, &str) {
+        (&self.client, &self.base, &self.auth)
+    }
+
     async fn get(&self, path: &str) -> Result<reqwest::Response, LcuError> {
         let resp = self
             .client
