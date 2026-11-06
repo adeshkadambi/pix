@@ -2,14 +2,14 @@
 
 export type Flags = { 
 /**
- * Summoner spell timers in the overlay. Gray: not named in Riot policy.
+ * Summoner spell timers in the overlay. On by default.
  */
 overlay_timers: boolean, 
 /**
- * Item-gold diff in the overlay. Gray: not named in Riot policy.
+ * Item-gold diff in the overlay. On by default.
  */
 overlay_gold: boolean, 
 /**
- * In-game item advice in the companion. Not Riot-compliant.
+ * In-game item advice in the companion. Not Riot-compliant; off by default.
  */
 live_advisor: boolean, };

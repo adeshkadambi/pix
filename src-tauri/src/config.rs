@@ -1,7 +1,7 @@
 //! User settings and feature flags, saved as JSON in the app config dir.
 //!
-//! Every flag defaults to off (SPEC §2): the gray overlay features stay off until Riot approves
-//! them, and the live advisor is off-policy.
+//! Flag defaults (SPEC §2): the overlay features (summoner timers, gold diff) are on by default
+//! by the author's choice; the live advisor is off-policy and stays off by default.
 
 use std::fs;
 use std::io;
@@ -12,16 +12,22 @@ use ts_rs::TS;
 
 pub const FILE_NAME: &str = "config.json";
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(default)]
 #[ts(export)]
 pub struct Flags {
-    /// Summoner spell timers in the overlay. Gray: not named in Riot policy.
+    /// Summoner spell timers in the overlay. On by default.
     pub overlay_timers: bool,
-    /// Item-gold diff in the overlay. Gray: not named in Riot policy.
+    /// Item-gold diff in the overlay. On by default.
     pub overlay_gold: bool,
-    /// In-game item advice in the companion. Not Riot-compliant.
+    /// In-game item advice in the companion. Not Riot-compliant; off by default.
     pub live_advisor: bool,
+}
+
+impl Default for Flags {
+    fn default() -> Self {
+        Self { overlay_timers: true, overlay_gold: true, live_advisor: false }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -103,11 +109,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn flags_default_to_off() {
+    fn overlays_on_and_advisor_off_by_default() {
         let flags = Config::default().flags;
-        assert!(!flags.overlay_timers);
-        assert!(!flags.overlay_gold);
-        assert!(!flags.live_advisor);
+        assert!(flags.overlay_timers);
+        assert!(flags.overlay_gold);
+        assert!(!flags.live_advisor, "the off-policy advisor is never on by default");
     }
 
     #[test]
@@ -128,10 +134,10 @@ mod tests {
     fn partial_file_fills_in_defaults() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(FILE_NAME);
-        fs::write(&path, r#"{"flags":{"overlay_gold":true}}"#).unwrap();
+        fs::write(&path, r#"{"flags":{"overlay_gold":false}}"#).unwrap();
         let cfg = Config::load(&path);
-        assert!(cfg.flags.overlay_gold);
-        assert!(!cfg.flags.overlay_timers);
+        assert!(!cfg.flags.overlay_gold, "a saved choice is kept");
+        assert!(cfg.flags.overlay_timers, "missing flags take their defaults");
         assert!(!cfg.flags.live_advisor);
         assert_eq!(cfg.scoreboard_key, "Tab");
     }
@@ -151,12 +157,12 @@ mod tests {
     #[test]
     fn set_flag_changes_only_that_flag() {
         let mut cfg = Config::default();
-        cfg.set_flag(Flag::OverlayTimers, true);
+        cfg.set_flag(Flag::OverlayTimers, false);
         assert_eq!(
             cfg.flags,
-            Flags { overlay_timers: true, overlay_gold: false, live_advisor: false }
+            Flags { overlay_timers: false, overlay_gold: true, live_advisor: false }
         );
-        cfg.set_flag(Flag::OverlayTimers, false);
+        cfg.set_flag(Flag::OverlayTimers, true);
         assert_eq!(cfg.flags, Flags::default());
     }
 }

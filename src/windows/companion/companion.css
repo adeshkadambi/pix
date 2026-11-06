@@ -157,10 +157,6 @@ kbd {
   font-size: 12px;
   font-weight: 600;
 }
-.risk--gray {
-  border: 1px solid var(--border-strong);
-  color: var(--text-2);
-}
 .risk--off-policy {
   background: var(--bad-bg);
   color: var(--bad-text);

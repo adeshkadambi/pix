@@ -15,7 +15,7 @@ Non-goals: public distribution (store listings, ads, accounts), macOS/Linux buil
 Audience rules (because friends use it too):
 - Nothing is hardcoded to the author's account, region or install path. Everything comes from the running client or from config.
 - All user data stays on each user's machine (section 5.12). There is no Pix server and nothing is uploaded.
-- Friends get the `.exe` from CI artifacts or GitHub releases. Flags default to off for everyone. Each user turns on gray or off-policy features themselves, after seeing the risk label.
+- Friends get the `.exe` from CI artifacts or GitHub releases. The overlay features (summoner timers, gold diff) are on by default; anyone can turn them off in Settings. The off-policy live advisor is off by default and keeps its risk label.
 
 Environment: development, running and testing happen on the author's Windows PC (Rust 1.99, Node 26) in `C:\Users\adesh\Documents\pix`. The code is pushed to the GitHub repo `adeshkadambi/pix`. Windows CI builds an `.exe`.
 
@@ -40,10 +40,10 @@ Sources: developer.riotgames.com/docs/lol (Game Integrity, Game Policy), develop
 |---|---|---|
 | Own profile / match history view ("Showing (self) player stats" is explicitly approved) | Compliant | On |
 | Comp-aware champ-select builds, threat card, pre-game build in-game, enemy purchase feed (companion), post-game review | Compliant | On |
-| Summoner timers (overlay), gold diff (overlay) | Gray (not named in policy) | **Off** until Riot approves |
+| Summoner timers (overlay), gold diff (overlay) | Not named in policy | **On** (author's decision, M4; was "off until Riot approves") |
 | Live item advisor (companion) | **Off-policy** ("drawing conclusions for you during gameplay"). The author accepted the risk | **Off**, labeled "Not Riot-compliant, use at own risk" |
 
-Registration: other people use Pix, so it is a product, not a personal tool. The author registers it on the Riot Developer Portal, discloses that it uses the League client API and the Live Client API, and describes the gray features. Gray flags flip only on approval. Riot personal API keys only cover their owner, so any future Riot web API use for friends (such as filling in older matches) needs a registered product key kept on a server, never inside the app.
+Registration: other people use Pix, so it is a product, not a personal tool. The author registers it on the Riot Developer Portal, discloses that it uses the League client API and the Live Client API, and describes the overlay features (summoner timers, gold diff), which ship on by default by the author's choice. Riot personal API keys only cover their owner, so any future Riot web API use for friends (such as filling in older matches) needs a registered product key kept on a server, never inside the app.
 
 CI guard: the build fails if the source contains `OpenProcess|ReadProcessMemory|WriteProcessMemory|SetWindowsHookEx|SendInput|keybd_event|mouse_event|RegisterHotKey|CreateRemoteThread`, or if `lcu/http.rs` issues anything other than GET.
 
@@ -198,7 +198,7 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 - **What's available per player:** `items[] {itemID, count, slot}`, `level`, `scores {kills,deaths,assists,creepScore}`, `summonerSpells.summonerSpellOne/Two.rawDisplayName`, `runes {keystone, primaryRuneTree, secondaryRuneTree}`, `position`. **The full rune page isn't available for other players, and items have no descriptions.**
 - **Clock:** `gameData.gameTime` (seconds). All timers use game time, so pauses and lag don't break them.
 
-### 5.7 Gold diff (overlay `tabpanel`, gray flag `overlay_gold`)
+### 5.7 Gold diff (overlay `tabpanel`, flag `overlay_gold`, on by default)
 - **Item gold** = Σ Data Dragon `item[id].gold.total × count` per player. Components count at their own price, consumables are included, and trinkets count 0. Unspent gold isn't visible for other players.
 - **Rows pair by scoreboard position.** The Live Client lists each team in scoreboard order, so enemy row `i` compares with your team's row `i`: the two players side by side on the scoreboard. In ranked and draft games the scoreboard is sorted by role, so rows are lane matchups. Earlier versions inferred lanes from positions; that was replaced in M4.
 - **Display (compact, in the tab panel while Tab is held):**
@@ -206,7 +206,7 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
   - On each enemy row: "8.8K vs. 7.8K (+1.0K)", meaning your player in that scoreboard row vs. the enemy, then the difference (green when you're ahead, pink when behind). It shows "–" if your team has no player in that row. Showing both totals lets you compare value across lanes.
   - Labeled as item gold, not total gold.
 
-### 5.8 Summoner timers (overlay `tabpanel` + `hud`, gray flag `overlay_timers`)
+### 5.8 Summoner timers (overlay `tabpanel` + `hud`, flag `overlay_timers`, on by default)
 - **Spell key:** `rawDisplayName` `GeneratedTip_SummonerSpell_<Key>_DisplayName` → `<Key>` (e.g. `SummonerFlash`) → Data Dragon `summoner.json` → `cooldown[0]` and icon.
 - **Haste:**
   - Items: strip HTML tags from the Data Dragon item `description`, then match `/(\d+)\s*Summoner Spell Haste/i`, summing over the enemy's current items. Never hardcode values.
@@ -308,12 +308,12 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
   - Draft options (rune page, core set) are clickable to choose what the Live screen follows.
   - The tab watch runs only during a game with `overlay_timers` on, and is ignored while calibrating.
   - Debug-only `PIX_LIVE_FIXTURE=<allgamedata.json>` replays a game snapshot.
-- **M4 Overlay features (gray, off by default):** gold diff, summoner timers with haste and Cosmic toggle.
+- **M4 Overlay features (on by default):** gold diff, summoner timers with haste and the Cosmic Insight checkbox.
 - **M5 Live advisor (off-policy, off by default) and post-game review.**
-- **M6 Compliance close-out:** Riot Developer Portal registration and disclosures. Turn on only approved gray features.
+- **M6 Compliance close-out:** Riot Developer Portal registration and disclosures, including the overlay features that ship on by default.
 
 ## 9. Verification
-- **`cargo test`** (on Mac and in CI): notation parser (real captured samples), matchup JSON parsing (recorded fixture), smoothing, role inference, comp profile, lockfile parsing, discovery YAML, haste regex against a Data Dragon `item.json` fixture, cooldown formula, gold sum, purchase diff, threat scoring and advisor filtering, flags default to off, asset allowlist rejects non-asset paths.
+- **`cargo test`** (on Mac and in CI): notation parser (real captured samples), matchup JSON parsing (recorded fixture), smoothing, role inference, comp profile, lockfile parsing, discovery YAML, haste regex against a Data Dragon `item.json` fixture, cooldown formula, gold sum, purchase diff, threat scoring and advisor filtering, flag defaults (overlays on, advisor off), asset allowlist rejects non-asset paths.
 - **Mac UI development:** replay mode `PIX_REPLAY=fixtures/<session>` feeds recorded LCU frames and `allgamedata`/`eventdata`.
 - **Windows manual checklist:**
   1. Client open → connected and phase shown. Profile shows your own ranked stats and match history; entering champ select switches to Draft.

@@ -114,7 +114,7 @@ pub struct TeamGold {
     pub enemy: u32,
 }
 
-/// Which gray overlay features are on (SPEC §2).
+/// Which overlay features are on (SPEC §2).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct OverlayFeatures {
     pub timers: bool,

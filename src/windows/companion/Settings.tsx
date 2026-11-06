@@ -3,33 +3,25 @@ import { eventSignal } from "../../lib/events";
 import { getConfig, setFlag, startCalibration } from "../../lib/ipc";
 import type { Flag } from "../../lib/types/Flag";
 
-type Risk = "gray" | "off-policy";
-
-const FLAGS: { id: Flag; name: string; desc: string; risk: Risk }[] = [
+// Only the off-policy advisor carries a risk label.
+const FLAGS: { id: Flag; name: string; desc: string; risk?: string }[] = [
   {
     id: "overlay_gold",
     name: "Gold diff overlay",
-    desc: "Item-gold difference per lane and per team, shown over the game.",
-    risk: "gray",
+    desc: "Item gold for each scoreboard row and each team, shown while you hold Tab.",
   },
   {
     id: "overlay_timers",
     name: "Summoner spell timers",
     desc: "Click an enemy's spell while holding Tab to start its cooldown timer.",
-    risk: "gray",
   },
   {
     id: "live_advisor",
     name: "Live item advisor",
     desc: "Suggests your next item during the game based on who is fed and who killed you.",
-    risk: "off-policy",
+    risk: "Not Riot-compliant, use at own risk.",
   },
 ];
-
-const RISK_LABEL: Record<Risk, string> = {
-  gray: "Gray area · not named in Riot policy. Keep off until Riot approves.",
-  "off-policy": "Not Riot-compliant, use at own risk.",
-};
 
 export function Settings() {
   const config = eventSignal("config-changed", getConfig);
@@ -49,7 +41,7 @@ export function Settings() {
       <h1>Settings</h1>
       <section class="card stack">
         <h2 class="card-title">Features</h2>
-        <p class="muted">Everything here is off by default.</p>
+        <p class="muted">The overlays are on by default; the live advisor is off.</p>
         <For each={FLAGS}>
           {(f) => {
             const checked = () => config()?.flags[f.id] ?? false;
@@ -58,7 +50,9 @@ export function Settings() {
                 <div class="flag-text">
                   <span class="flag-name">{f.name}</span>
                   <span class="muted small">{f.desc}</span>
-                  <span class={`risk risk--${f.risk}`}>{RISK_LABEL[f.risk]}</span>
+                  <Show when={f.risk}>
+                    <span class="risk risk--off-policy">{f.risk}</span>
+                  </Show>
                 </div>
                 <input
                   type="checkbox"

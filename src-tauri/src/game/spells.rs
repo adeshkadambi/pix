@@ -1,4 +1,4 @@
-//! Summoner spell timers (SPEC §5.8, gray flag `overlay_timers`).
+//! Summoner spell timers (SPEC §5.8, flag `overlay_timers`, on by default).
 //!
 //! - Cooldown = base / (1 + haste / 100), worked out when you click, from the enemy's items at
 //!   that moment.

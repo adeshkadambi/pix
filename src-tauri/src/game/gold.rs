@@ -1,4 +1,4 @@
-//! Item-gold difference (SPEC §5.7, gray flag `overlay_gold`).
+//! Item-gold difference (SPEC §5.7, flag `overlay_gold`, on by default).
 //!
 //! The Live Client API doesn't give other players' gold, so this is **item gold**: the sum of
 //! each player's items at Data Dragon's full price (`gold.total × count`). It's labeled that way.

@@ -165,7 +165,7 @@ pub fn game_started(app: &AppHandle) {
         (c.flags.overlay_timers, c.flags.overlay_gold, c.scoreboard_key.clone())
     };
     let mut rt = state.overlay.lock().unwrap();
-    // The tab panel carries both gray features: spell timers and lane gold.
+    // The tab panel carries both overlay features: spell timers and row gold.
     if (timers_on || gold_on) && rt.tab_watch.is_none() {
         match win32::virtual_key(&key) {
             Some(vk) => rt.tab_watch = Some(TabWatch::start(app.clone(), vk)),
