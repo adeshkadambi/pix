@@ -36,10 +36,19 @@ export const chooseBuild = (kind: "runes" | "core", index: number) => invoke<voi
 /** The current game's view, or null when no game is running. */
 export const getLive = () => invoke<LiveView | null>("get_live");
 
+/** Start an enemy's summoner spell timer, or clear it if it's running. */
+export const toggleTimer = (champion: string, slot: number) => invoke<void>("toggle_timer", { champion, slot });
+
+/** Tick or untick Cosmic Insight for an enemy (+18 summoner spell haste). */
+export const setCosmic = (champion: string, on: boolean) => invoke<void>("set_cosmic", { champion, on });
+
 export const getOverlayMode = () => invoke<OverlayMode>("get_overlay_mode");
 
 /** Show the tab panel (draggable) and the HUD test banner. */
 export const startCalibration = () => invoke<void>("start_calibration");
 
-/** End calibration; `save` stores the tab panel's position for this screen resolution. */
+/** The HUD timer list was dragged during calibration (`x`, `y` as a share of the screen). */
+export const moveTimers = (x: number, y: number) => invoke<void>("move_timers", { x, y });
+
+/** End calibration; `save` stores the tab panel's and timer list's positions. */
 export const finishCalibration = (save: boolean) => invoke<void>("finish_calibration", { save });

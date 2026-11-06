@@ -82,6 +82,18 @@ fn get_live(state: State<'_, AppState>) -> Option<live::view::LiveView> {
     state.live.lock().unwrap().view.clone()
 }
 
+/// Starts an enemy's summoner spell timer, or clears it if it's running.
+#[tauri::command]
+async fn toggle_timer(app: AppHandle, champion: String, slot: u8) -> Result<(), String> {
+    live::poller::toggle_timer(&app, &champion, slot).await
+}
+
+/// Ticks or unticks Cosmic Insight for an enemy (+18 summoner spell haste).
+#[tauri::command]
+async fn set_cosmic(app: AppHandle, champion: String, on: bool) -> Result<(), String> {
+    live::poller::set_cosmic(&app, &champion, on).await
+}
+
 #[tauri::command]
 fn get_overlay_mode(app: AppHandle) -> overlay::OverlayMode {
     overlay::mode(&app)
@@ -90,6 +102,12 @@ fn get_overlay_mode(app: AppHandle) -> overlay::OverlayMode {
 #[tauri::command]
 fn start_calibration(app: AppHandle) {
     overlay::start_calibration(&app);
+}
+
+/// The HUD timer list was dragged during calibration (`x`, `y` as a share of the screen).
+#[tauri::command]
+fn move_timers(app: AppHandle, x: f32, y: f32) {
+    overlay::move_timers(&app, x, y);
 }
 
 #[tauri::command]
@@ -162,8 +180,11 @@ pub fn run() {
             set_my_role,
             choose_build,
             get_live,
+            toggle_timer,
+            set_cosmic,
             get_overlay_mode,
             start_calibration,
+            move_timers,
             finish_calibration
         ])
         .run(tauri::generate_context!())

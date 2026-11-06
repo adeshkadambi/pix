@@ -14,3 +14,49 @@
   font-size: 14px;
   white-space: nowrap;
 }
+
+/* Running summoner timers. Anchored by the top-right corner (right/top set inline). */
+.hud-timers {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  border-radius: 9px;
+  background: var(--overlay-panel);
+  border: 1px solid var(--overlay-border);
+}
+.hud-timer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+}
+.hud-champ {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 7px;
+}
+.hud-spell {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 7px;
+}
+.hud-left {
+  min-width: 32px;
+  text-align: right;
+  font: 700 12px var(--font-display);
+  color: var(--accent-light);
+}
+
+.hud-timers--calibrating {
+  cursor: move;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.hud-sample {
+  display: inline-block;
+  background: var(--raised);
+}

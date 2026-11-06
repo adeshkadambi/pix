@@ -33,7 +33,7 @@ pub enum Flag {
     LiveAdvisor,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default)]
 #[ts(export)]
 pub struct Config {
@@ -45,6 +45,8 @@ pub struct Config {
     /// Tab panel position from calibration, per monitor resolution ("1920x1080" → offset from
     /// the monitor's top-left, in physical pixels).
     pub tabpanel_offsets: std::collections::BTreeMap<String, (i32, i32)>,
+    /// Where the HUD's running-timer list sits: its top-right corner, as a share of the screen.
+    pub hud_timers_pos: Option<(f32, f32)>,
 }
 
 impl Default for Config {
@@ -54,6 +56,7 @@ impl Default for Config {
             scoreboard_key: "Tab".into(),
             install_path: None,
             tabpanel_offsets: Default::default(),
+            hud_timers_pos: None,
         }
     }
 }

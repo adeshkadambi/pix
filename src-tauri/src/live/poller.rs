@@ -1,5 +1,6 @@
 //! Polls `allgamedata` once a second while a game is in progress (SPEC §5.6). The API errors
-//! during loading, so failures just mean "try again next second".
+//! during loading, so failures just mean "try again next second". Also owns this game's
+//! summoner timers (SPEC §5.8), which the tab panel starts and clears.
 
 use std::time::Duration;
 
@@ -8,6 +9,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use super::models::{AllGameData, Event};
 use super::view::{self, WindowMode};
 use crate::game::purchases::PurchaseFeed;
+use crate::game::spells::{self, TimerBook};
 use crate::overlay;
 use crate::state::AppState;
 use crate::{profile, riot_tls};
@@ -23,6 +25,10 @@ pub struct LiveRuntime {
     /// Kill events recorded this game, for the post-game review (M5). Memory only.
     pub kills: Vec<Event>,
     pub window_mode: Option<WindowMode>,
+    feed: PurchaseFeed,
+    timers: TimerBook,
+    /// Latest snapshot, so a timer click can redraw at once.
+    last_game: Option<AllGameData>,
 }
 
 /// Starts polling for a new game. Safe to call twice.
@@ -32,9 +38,8 @@ pub fn start(app: &AppHandle) {
     if rt.task.is_some() {
         return;
     }
-    rt.view = None;
-    rt.kills.clear();
-    rt.window_mode = read_window_mode(app);
+    let window_mode = read_window_mode(app);
+    *rt = LiveRuntime { window_mode, ..Default::default() };
     let app = app.clone();
     rt.task = Some(tauri::async_runtime::spawn(async move { run(app).await }));
     tracing::info!("live game polling started");
@@ -65,12 +70,11 @@ async fn fetch(client: &reqwest::Client) -> Option<AllGameData> {
 
 async fn run(app: AppHandle) {
     let client = riot_tls::local_http_client();
-    let mut feed = PurchaseFeed::default();
     let mut first = true;
     loop {
         if let Some(game) = fetch(&client).await
             && game.me().is_some()
-            && tick(&app, &game, &mut feed, first).await
+            && tick(&app, game, first).await
         {
             first = false;
         }
@@ -79,25 +83,37 @@ async fn run(app: AppHandle) {
 }
 
 /// Processes one snapshot. Returns false if it couldn't yet (data still loading).
-async fn tick(app: &AppHandle, game: &AllGameData, feed: &mut PurchaseFeed, first: bool) -> bool {
+async fn tick(app: &AppHandle, game: AllGameData, first: bool) -> bool {
     let state = app.state::<AppState>();
     let Some(dd) = state.ddragon() else { return false };
-    let Some(http) = state.lcu_http() else { return false };
-    let Ok(catalog) = profile::catalog(app, &http).await else { return false };
-    feed.update(game, &dd);
-    if first {
-        overlay::game_started(app);
-    }
-
-    let draft = state.draft.lock().unwrap().view.clone();
-    let view = {
+    {
         let mut rt = state.live.lock().unwrap();
+        rt.feed.update(&game, &dd);
+        rt.timers.prune(game.game_data.game_time);
         for e in game.events.events.iter().filter(|e| e.name == "ChampionKill") {
             if !rt.kills.iter().any(|k| k.id == e.id) {
                 rt.kills.push(e.clone());
             }
         }
-        let view = view::build_view(game, draft.as_ref(), feed, &catalog, &dd, rt.window_mode);
+        rt.last_game = Some(game);
+    }
+    if first {
+        overlay::game_started(app);
+    }
+    redraw(app).await
+}
+
+/// Rebuilds the view from the latest snapshot and emits it if it changed.
+async fn redraw(app: &AppHandle) -> bool {
+    let state = app.state::<AppState>();
+    let Some(dd) = state.ddragon() else { return false };
+    let Some(http) = state.lcu_http() else { return false };
+    let Ok(catalog) = profile::catalog(app, &http).await else { return false };
+    let draft = state.draft.lock().unwrap().view.clone();
+    let view = {
+        let mut rt = state.live.lock().unwrap();
+        let Some(game) = rt.last_game.as_ref() else { return false };
+        let view = view::build_view(game, draft.as_ref(), &rt.feed, &rt.timers, &catalog, &dd, rt.window_mode);
         if rt.view.as_ref() == Some(&view) {
             return true;
         }
@@ -108,4 +124,43 @@ async fn tick(app: &AppHandle, game: &AllGameData, feed: &mut PurchaseFeed, firs
         tracing::warn!("failed to emit {LIVE_EVENT}: {e}");
     }
     true
+}
+
+fn timers_enabled(app: &AppHandle) -> Result<(), String> {
+    if app.state::<AppState>().config.lock().unwrap().flags.overlay_timers {
+        Ok(())
+    } else {
+        Err("Summoner timers are turned off in Settings.".into())
+    }
+}
+
+/// Starts a spell's timer from the enemy's haste right now, or clears it if it's running.
+pub async fn toggle_timer(app: &AppHandle, champion: &str, slot: u8) -> Result<(), String> {
+    timers_enabled(app)?;
+    let state = app.state::<AppState>();
+    let dd = state.ddragon().ok_or("champion data isn't loaded yet")?;
+    {
+        let mut rt = state.live.lock().unwrap();
+        let game = rt.last_game.clone().ok_or("no game running")?;
+        let enemy = game.enemies().find(|p| p.ddragon_id() == champion).ok_or("unknown enemy")?;
+        let spell = match slot {
+            0 => &enemy.summoner_spells.summoner_spell_one,
+            1 => &enemy.summoner_spells.summoner_spell_two,
+            _ => return Err("bad spell slot".into()),
+        };
+        let key = spell.key().unwrap_or_default();
+        let info = spells::spell_info(key, &dd).filter(|_| spells::trackable(key)).ok_or("this spell isn't timed")?;
+        let haste = view::enemy_haste(enemy, &rt.timers, &dd);
+        let duration = spells::cooldown(info.cooldown, haste);
+        rt.timers.toggle(champion, slot, game.game_data.game_time, duration);
+    }
+    redraw(app).await;
+    Ok(())
+}
+
+pub async fn set_cosmic(app: &AppHandle, champion: &str, on: bool) -> Result<(), String> {
+    timers_enabled(app)?;
+    app.state::<AppState>().live.lock().unwrap().timers.set_cosmic(champion, on);
+    redraw(app).await;
+    Ok(())
 }

@@ -2,6 +2,11 @@
 
 export type OverlayMode = { 
 /**
- * Calibration: the tab panel is shown and draggable, and the HUD shows a test banner.
+ * Calibration: the tab panel and a sample timer list are shown and draggable, and the HUD
+ * shows a test banner.
  */
-calibrating: boolean, };
+calibrating: boolean, 
+/**
+ * Where the HUD's timer list sits, as a share of the screen (x, y of its top-RIGHT corner).
+ */
+timers_pos: [number, number], };

@@ -7,6 +7,7 @@ use ts_rs::TS;
 use crate::builds::draft::{DraftView, RunePageView, ThreatView};
 use crate::ddragon::DData;
 use crate::game::purchases::PurchaseFeed;
+use crate::game::spells::{self, TimerBook};
 use crate::lcu::catalog::{Catalog, Icon};
 use crate::live::models::{AllGameData, Player};
 
@@ -64,13 +65,34 @@ pub struct PurchaseView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export)]
+pub struct SpellView {
+    pub icon: Icon,
+    /// 0 or 1: which summoner slot, for starting/clearing its timer.
+    pub slot: u8,
+    /// False for spells Pix doesn't time (Smite).
+    pub trackable: bool,
+    /// Cooldown if used now, with the enemy's current haste.
+    pub cooldown: f32,
+    /// Seconds left on a running timer.
+    pub remaining: Option<f32>,
+    /// Full length of the running timer, for its progress bar.
+    pub duration: Option<f32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
 pub struct LiveEnemy {
+    /// Data Dragon champion id: the key for timers and Cosmic Insight (never the player).
+    pub key: String,
     pub champion: Icon,
     pub level: u32,
     pub dead: bool,
     /// "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY" or "".
     pub position: String,
-    pub spells: Vec<Icon>,
+    pub spells: Vec<SpellView>,
+    /// You ticked Cosmic Insight for this enemy.
+    pub cosmic: bool,
+    pub haste: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
@@ -95,12 +117,31 @@ fn champion_icon(p: &Player, catalog: &Catalog, dd: &DData) -> Icon {
     }
 }
 
-fn spell_icons(p: &Player, catalog: &Catalog, dd: &DData) -> Vec<Icon> {
+/// Summoner haste for an enemy right now: items plus Cosmic Insight if you ticked it.
+pub fn enemy_haste(p: &Player, timers: &TimerBook, dd: &DData) -> u32 {
+    spells::item_haste(&p.items, dd) + if timers.cosmic(p.ddragon_id()) { spells::COSMIC_INSIGHT_HASTE } else { 0 }
+}
+
+fn spell_views(p: &Player, game_time: f64, timers: &TimerBook, catalog: &Catalog, dd: &DData) -> Vec<SpellView> {
+    let haste = enemy_haste(p, timers, dd);
     [&p.summoner_spells.summoner_spell_one, &p.summoner_spells.summoner_spell_two]
         .iter()
-        .map(|s| match s.key().and_then(|k| dd.summoners.get(k)) {
-            Some(info) => catalog.spell(info.id),
-            None => Icon { id: 0, name: s.display_name.clone(), icon: String::new() },
+        .enumerate()
+        .map(|(slot, s)| {
+            let key = s.key().unwrap_or_default();
+            let info = spells::spell_info(key, dd);
+            let running = timers.running(p.ddragon_id(), slot as u8, game_time);
+            SpellView {
+                icon: match info {
+                    Some(i) => catalog.spell(i.id),
+                    None => Icon { id: 0, name: s.display_name.clone(), icon: String::new() },
+                },
+                slot: slot as u8,
+                trackable: info.is_some() && spells::trackable(key),
+                cooldown: info.map(|i| spells::cooldown(i.cooldown, haste)).unwrap_or(0.0),
+                remaining: running.map(|t| t.remaining(game_time)),
+                duration: running.map(|t| t.duration),
+            }
         })
         .collect()
 }
@@ -133,10 +174,12 @@ fn steps(draft_build: &crate::builds::draft::BuildView, chosen_core: usize, owne
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_view(
     game: &AllGameData,
     draft: Option<&DraftView>,
     feed: &PurchaseFeed,
+    timers: &TimerBook,
     catalog: &Catalog,
     dd: &DData,
     window_mode: Option<WindowMode>,
@@ -192,11 +235,14 @@ pub fn build_view(
         enemies: game
             .enemies()
             .map(|p| LiveEnemy {
+                key: p.ddragon_id().to_owned(),
                 champion: champion_icon(p, catalog, dd),
                 level: p.level,
                 dead: p.is_dead,
                 position: p.position.clone(),
-                spells: spell_icons(p, catalog, dd),
+                spells: spell_views(p, game.game_data.game_time, timers, catalog, dd),
+                cosmic: timers.cosmic(p.ddragon_id()),
+                haste: enemy_haste(p, timers, dd),
             })
             .collect(),
         window_mode,
@@ -296,7 +342,7 @@ mod tests {
 
     #[test]
     fn builds_the_live_view() {
-        let v = build_view(&game(), Some(&draft(233)), &PurchaseFeed::default(), &catalog(), &dd(), Some(WindowMode::Borderless));
+        let v = build_view(&game(), Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), Some(WindowMode::Borderless));
         let me = v.me.unwrap();
         assert_eq!((me.champion.name.as_str(), me.level, me.kills, me.deaths, me.assists, me.cs, me.gold), ("Briar", 11, 6, 2, 5, 142, 1130));
         assert!(v.summoners_rift && v.build_note.is_none());
@@ -312,22 +358,42 @@ mod tests {
         assert_eq!(v.enemies.len(), 5);
         let viego = &v.enemies[1];
         assert_eq!(viego.champion.name, "Viego");
-        assert_eq!(viego.spells.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), vec!["Flash", "Smite"]);
+        assert_eq!(viego.spells.iter().map(|s| s.icon.name.as_str()).collect::<Vec<_>>(), vec!["Flash", "Smite"]);
         assert!(v.enemies[2].dead, "Syndra is dead in the fixture");
     }
 
     #[test]
     fn no_build_for_another_champion_or_off_the_rift() {
-        let v = build_view(&game(), Some(&draft(1)), &PurchaseFeed::default(), &catalog(), &dd(), None);
+        let v = build_view(&game(), Some(&draft(1)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None);
         assert!(v.build.is_none());
         assert_eq!(v.build_note.as_deref(), Some("The champ select build was for Briar."));
         let mut aram = game();
         aram.game_data.map_number = 12;
         aram.game_data.game_mode = "ARAM".into();
-        let v = build_view(&aram, Some(&draft(233)), &PurchaseFeed::default(), &catalog(), &dd(), None);
+        let v = build_view(&aram, Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None);
         assert!(v.build.is_none() && v.threats.is_empty() && !v.summoners_rift);
-        let v = build_view(&game(), None, &PurchaseFeed::default(), &catalog(), &dd(), None);
+        let v = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None);
         assert_eq!(v.build_note.as_deref(), Some("No build from champ select for this game."));
+    }
+
+    #[test]
+    fn timers_and_cosmic_show_on_enemy_spells() {
+        let mut timers = TimerBook::default();
+        // Viego's Flash, clicked at 18:20 (1100 s) with no haste: 300 s.
+        timers.toggle("Viego", 0, 1100.0, 300.0);
+        timers.set_cosmic("Viego", true);
+        let v = build_view(&game(), None, &PurchaseFeed::default(), &timers, &catalog(), &dd(), None);
+        let viego = v.enemies.iter().find(|e| e.key == "Viego").unwrap();
+        assert!(viego.cosmic);
+        assert_eq!(viego.haste, 18);
+        let flash = &viego.spells[0];
+        assert_eq!(flash.remaining, Some(277.5), "fixture game time is 1122.5");
+        assert_eq!(flash.duration, Some(300.0));
+        assert!((flash.cooldown - 300.0 / 1.18).abs() < 1e-3, "a new click would use the current haste");
+        let smite = &viego.spells[1];
+        assert!(!smite.trackable && smite.remaining.is_none());
+        let malphite = v.enemies.iter().find(|e| e.key == "Malphite").unwrap();
+        assert!(!malphite.cosmic && malphite.spells[0].remaining.is_none());
     }
 
     #[test]

@@ -14,4 +14,8 @@ install_path: string | null,
  * Tab panel position from calibration, per monitor resolution ("1920x1080" → offset from
  * the monitor's top-left, in physical pixels).
  */
-tabpanel_offsets: { [key in string]?: [number, number] }, };
+tabpanel_offsets: { [key in string]?: [number, number] }, 
+/**
+ * Where the HUD's running-timer list sits: its top-right corner, as a share of the screen.
+ */
+hud_timers_pos: [number, number] | null, };

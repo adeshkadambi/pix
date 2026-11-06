@@ -26,17 +26,32 @@ pub const MODE_EVENT: &str = "overlay-mode";
 /// (from the design at 1920×1080: x 1548, y 248).
 const DEFAULT_OFFSET: (f64, f64) = (0.806, 0.23);
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, TS)]
+/// Default spot for the HUD's running-timer list: its top-right corner just under League's
+/// FPS / ping readout in the top-right of the screen.
+pub const DEFAULT_TIMERS_POS: (f32, f32) = (0.993, 0.052);
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
 #[ts(export)]
 pub struct OverlayMode {
-    /// Calibration: the tab panel is shown and draggable, and the HUD shows a test banner.
+    /// Calibration: the tab panel and a sample timer list are shown and draggable, and the HUD
+    /// shows a test banner.
     pub calibrating: bool,
+    /// Where the HUD's timer list sits, as a share of the screen (x, y of its top-RIGHT corner).
+    pub timers_pos: (f32, f32),
+}
+
+impl Default for OverlayMode {
+    fn default() -> Self {
+        Self { calibrating: false, timers_pos: DEFAULT_TIMERS_POS }
+    }
 }
 
 #[derive(Default)]
 pub struct OverlayRuntime {
     tab_watch: Option<TabWatch>,
     mode: OverlayMode,
+    /// Timer list position dragged during calibration, saved only on ✓.
+    pending_timers_pos: Option<(f32, f32)>,
 }
 
 pub type SharedOverlay = Mutex<OverlayRuntime>;
@@ -156,6 +171,11 @@ pub fn game_started(app: &AppHandle) {
             None => tracing::warn!("scoreboard key {key:?} isn't supported; tab panel disabled"),
         }
     }
+    drop(rt);
+    if timers_on {
+        // Click-through HUD with running countdowns while the scoreboard key isn't held.
+        set_hud_visible(app, true);
+    }
 }
 
 /// The game ended: stop watching keys and hide the overlays (unless calibrating).
@@ -172,36 +192,77 @@ pub fn game_ended(app: &AppHandle) {
     }
 }
 
-/// Calibration: show the tab panel (draggable) and a HUD test banner. Works with or without a
-/// game running; with one, it's also the full-screen check (can the overlay be seen?).
-pub fn start_calibration(app: &AppHandle) {
-    app.state::<AppState>().overlay.lock().unwrap().mode.calibrating = true;
-    place(app);
-    set_hud_visible(app, true);
-    set_tabpanel_visible(app, true);
-    emit_mode(app, OverlayMode { calibrating: true });
+/// The HUD takes clicks only while calibrating (to drag the timer list); otherwise it's
+/// click-through. The no-focus styles are re-applied after every cursor change.
+fn set_hud_interactive(app: &AppHandle, interactive: bool) {
+    let Some(hud) = window(app, HUD) else { return };
+    if let Err(e) = hud.set_ignore_cursor_events(!interactive).and_then(|_| win32::make_non_activating(&hud)) {
+        tracing::warn!("HUD cursor change failed: {e}");
+    }
 }
 
-/// Ends calibration. With `save`, stores the tab panel's position for this resolution.
+fn saved_timers_pos(app: &AppHandle) -> (f32, f32) {
+    app.state::<AppState>().config.lock().unwrap().hud_timers_pos.unwrap_or(DEFAULT_TIMERS_POS)
+}
+
+/// Calibration: show the tab panel and a sample timer list (both draggable) and a HUD test
+/// banner. Works with or without a game running; with one, it's also the window-mode check.
+pub fn start_calibration(app: &AppHandle) {
+    let mode = OverlayMode { calibrating: true, timers_pos: saved_timers_pos(app) };
+    {
+        let state = app.state::<AppState>();
+        let mut rt = state.overlay.lock().unwrap();
+        rt.mode = mode;
+        rt.pending_timers_pos = None;
+    }
+    place(app);
+    set_hud_visible(app, true);
+    set_hud_interactive(app, true);
+    set_tabpanel_visible(app, true);
+    emit_mode(app, mode);
+}
+
+/// The timer list was dragged during calibration (kept until ✓ or ✕).
+pub fn move_timers(app: &AppHandle, x: f32, y: f32) {
+    let pos = (x.clamp(0.0, 0.98), y.clamp(0.0, 0.98));
+    let state = app.state::<AppState>();
+    let mut rt = state.overlay.lock().unwrap();
+    if rt.mode.calibrating {
+        rt.pending_timers_pos = Some(pos);
+        rt.mode.timers_pos = pos;
+    }
+}
+
+/// Ends calibration. With `save`, stores the tab panel's position for this resolution and the
+/// timer list's position.
 pub fn finish_calibration(app: &AppHandle, save: bool) -> Result<(), String> {
     let state = app.state::<AppState>();
+    let pending = state.overlay.lock().unwrap().pending_timers_pos.take();
     if save {
         let monitor = target_monitor(app).ok_or("no monitor found")?;
         let panel = window(app, TAB_PANEL).ok_or("tab panel window is missing")?;
         let pos = panel.outer_position().map_err(|e| e.to_string())?;
         let mut config = state.config.lock().unwrap();
         config.tabpanel_offsets.insert(resolution_key(&monitor), (pos.x - monitor.x, pos.y - monitor.y));
+        if let Some(p) = pending {
+            config.hud_timers_pos = Some(p);
+        }
         config.save(&state.config_path).map_err(|e| format!("couldn't save settings: {e}"))?;
     }
-    state.overlay.lock().unwrap().mode.calibrating = false;
+    let mode = OverlayMode { calibrating: false, timers_pos: saved_timers_pos(app) };
+    state.overlay.lock().unwrap().mode = mode;
+    set_hud_interactive(app, false);
     set_tabpanel_visible(app, false);
-    set_hud_visible(app, false);
-    emit_mode(app, OverlayMode { calibrating: false });
+    // Keep the HUD up if a game with timers is running; otherwise hide it.
+    let in_game = state.overlay.lock().unwrap().tab_watch.is_some();
+    set_hud_visible(app, in_game);
+    emit_mode(app, mode);
     Ok(())
 }
 
 pub fn mode(app: &AppHandle) -> OverlayMode {
-    app.state::<AppState>().overlay.lock().unwrap().mode
+    let current = app.state::<AppState>().overlay.lock().unwrap().mode;
+    if current.calibrating { current } else { OverlayMode { calibrating: false, timers_pos: saved_timers_pos(app) } }
 }
 
 #[cfg(test)]

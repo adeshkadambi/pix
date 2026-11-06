@@ -1,12 +1,15 @@
 import { For, Show } from "solid-js";
 import { AssetIcon } from "../../components/AssetIcon";
 import { eventSignal } from "../../lib/events";
-import { finishCalibration, getLive, getOverlayMode } from "../../lib/ipc";
+import { finishCalibration, getLive, getOverlayMode, setCosmic, toggleTimer } from "../../lib/ipc";
+import { countdown } from "../../lib/timer";
+import type { LiveEnemy } from "../../lib/types/LiveEnemy";
+import type { SpellView } from "../../lib/types/SpellView";
 import "./tabpanel.css";
 
-// Compact panel next to the scoreboard: one row per enemy (champion, two summoner spells).
-// Shown while the scoreboard key is held with League in front (summoner timer feature on), or
-// during calibration. M4 turns the spell icons into clickable timers.
+// Compact panel next to the scoreboard: one row per enemy (champion, two summoner spells,
+// Cosmic Insight). Shown while the scoreboard key is held with League in front (summoner timer
+// feature on), or during calibration. Click a spell to start its timer; click again to clear it.
 export function TabPanel() {
   const mode = eventSignal("overlay-mode", getOverlayMode);
   const live = eventSignal("live", getLive);
@@ -36,20 +39,56 @@ export function TabPanel() {
                 <span class="tp-champ" />
                 <span class="tp-spell" />
                 <span class="tp-spell" />
+                <span class="tp-ci" />
               </div>
             )}
           </For>
         }
       >
-        <For each={live()!.enemies}>
-          {(e) => (
-            <div class={`tp-row ${e.dead ? "tp-row--dead" : ""}`}>
-              <AssetIcon path={e.champion.icon} name={e.champion.name} class="tp-champ" decorative />
-              <For each={e.spells}>{(s) => <AssetIcon path={s.icon} name={s.name} class="tp-spell" />}</For>
-            </div>
-          )}
-        </For>
+        <For each={live()!.enemies}>{(e) => <EnemyRow enemy={e} />}</For>
       </Show>
     </div>
+  );
+}
+
+function EnemyRow(props: { enemy: LiveEnemy }) {
+  const e = () => props.enemy;
+  return (
+    <div class={`tp-row ${e().dead ? "tp-row--dead" : ""}`}>
+      <AssetIcon path={e().champion.icon} name={e().champion.name} class="tp-champ" decorative />
+      <For each={e().spells}>{(s) => <SpellButton champion={e().key} championName={e().champion.name} spell={s} />}</For>
+      <label class={`tp-ci ${e().cosmic ? "tp-ci--on" : ""}`} title={`${e().champion.name} has Cosmic Insight (+18 summoner spell haste)`}>
+        <input type="checkbox" checked={e().cosmic} onChange={(ev) => void setCosmic(e().key, ev.currentTarget.checked)} />
+        <span aria-hidden="true">CI</span>
+      </label>
+    </div>
+  );
+}
+
+function SpellButton(props: { champion: string; championName: string; spell: SpellView }) {
+  const s = () => props.spell;
+  const running = () => s().remaining != null;
+  const pct = () => (running() && s().duration ? (1 - s().remaining! / s().duration!) * 100 : 0);
+  const label = () =>
+    !s().trackable
+      ? `${props.championName} ${s().icon.name}: not timed`
+      : running()
+        ? `${props.championName} ${s().icon.name}: ${countdown(s().remaining!)} left. Click to clear.`
+        : `Start ${props.championName} ${s().icon.name} timer (${countdown(s().cooldown)})`;
+  return (
+    <button
+      type="button"
+      class={`tp-spell tp-spell-btn ${running() ? "tp-spell--running" : ""} ${s().trackable ? "" : "tp-spell--untracked"}`}
+      disabled={!s().trackable}
+      title={label()}
+      aria-label={label()}
+      onClick={() => void toggleTimer(props.champion, s().slot)}
+    >
+      <AssetIcon path={s().icon.icon} name={s().icon.name} class="tp-spell-icon" decorative />
+      <Show when={running()}>
+        <span class="tp-time">{countdown(s().remaining!)}</span>
+        <span class="tp-progress" style={{ width: `${pct()}%` }} />
+      </Show>
+    </button>
   );
 }
