@@ -69,7 +69,7 @@ function EnemyRow(props: { enemy: LiveEnemy; timers: boolean; gold: boolean }) {
       <Show when={props.gold}>
         <span
           class={`tp-gold ${e().lane_gold == null ? "" : e().lane_gold! >= 0 ? "tp-up" : "tp-down"}`}
-          title={e().lane_gold == null ? "Lane opponent unknown" : `Your laner's item gold vs ${e().champion.name}`}
+          title={e().lane_gold == null ? "No player in this scoreboard row on your team" : `Item gold: your player in this scoreboard row vs ${e().champion.name}`}
         >
           {e().lane_gold == null ? "–" : goldDiff(e().lane_gold!)}
         </span>

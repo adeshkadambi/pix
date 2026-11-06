@@ -6,9 +6,6 @@ use ts_rs::TS;
 
 use crate::builds::draft::{DraftView, RunePageView, ThreatView};
 use crate::ddragon::DData;
-use std::collections::HashMap;
-
-use crate::builds::Role;
 use crate::game::gold;
 use crate::game::purchases::PurchaseFeed;
 use crate::game::spells::{self, TimerBook};
@@ -97,7 +94,7 @@ pub struct LiveEnemy {
     /// You ticked Cosmic Insight for this enemy.
     pub cosmic: bool,
     pub haste: u32,
-    /// Your laner's item gold minus this enemy's (gold feature on and lane known).
+    /// Item gold of your player in the same scoreboard row minus this enemy's (gold feature on).
     pub lane_gold: Option<i32>,
 }
 
@@ -211,7 +208,7 @@ pub fn build_view(
     features: OverlayFeatures,
 ) -> LiveView {
     let rift = game.is_summoners_rift();
-    let gold = features.gold.then(|| gold::summarize(game, dd, &draft_roles(draft, dd)));
+    let gold = features.gold.then(|| gold::summarize(game, dd));
     let me = game.me();
     let my_key = me.and_then(|m| dd.champion_key(m.ddragon_id()));
 
@@ -270,7 +267,7 @@ pub fn build_view(
                 spells: spell_views(p, game.game_data.game_time, timers, catalog, dd),
                 cosmic: timers.cosmic(p.ddragon_id()),
                 haste: enemy_haste(p, timers, dd),
-                lane_gold: gold.as_ref().and_then(|g| g.lanes.get(p.ddragon_id()).copied()),
+                lane_gold: gold.as_ref().and_then(|g| g.rows.get(p.ddragon_id()).copied()),
             })
             .collect(),
         window_mode,
@@ -279,17 +276,6 @@ pub fn build_view(
     }
 }
 
-/// Roles from champ select (your team's assigned roles, enemies' inferred ones), by Data Dragon
-/// champion id. Used to pair lanes when the Live Client gives no position.
-fn draft_roles(draft: Option<&DraftView>, dd: &DData) -> HashMap<String, Role> {
-    let Some(d) = draft else { return HashMap::new() };
-    let id = |icon: &Option<Icon>| icon.as_ref().and_then(|c| dd.champions.get(&c.id)).map(|c| c.id.clone());
-    d.allies
-        .iter()
-        .filter_map(|a| Some((id(&a.champion)?, a.role?)))
-        .chain(d.enemies.iter().filter_map(|e| Some((id(&e.champion)?, e.inferred?.role))))
-        .collect()
-}
 
 /// League's `Config/game.cfg` → `[General] WindowMode=` (0 full screen, 1 windowed, 2 borderless).
 pub fn parse_window_mode(game_cfg: &str) -> Option<WindowMode> {

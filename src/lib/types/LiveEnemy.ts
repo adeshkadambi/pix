@@ -16,6 +16,6 @@ position: string, spells: Array<SpellView>,
  */
 cosmic: boolean, haste: number, 
 /**
- * Your laner's item gold minus this enemy's (gold feature on and lane known).
+ * Item gold of your player in the same scoreboard row minus this enemy's (gold feature on).
  */
 lane_gold: number | null, };

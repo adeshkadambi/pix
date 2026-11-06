@@ -198,9 +198,13 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 - **What's available per player:** `items[] {itemID, count, slot}`, `level`, `scores {kills,deaths,assists,creepScore}`, `summonerSpells.summonerSpellOne/Two.rawDisplayName`, `runes {keystone, primaryRuneTree, secondaryRuneTree}`, `position`. **The full rune page isn't available for other players, and items have no descriptions.**
 - **Clock:** `gameData.gameTime` (seconds). All timers use game time, so pauses and lag don't break them.
 
-### 5.7 Gold diff (overlay `hud`, gray flag `overlay_gold`)
-- **Item gold** = Σ Data Dragon `item[id].gold.total × count` per player.
-- Shown per lane matchup (positions from Live Client `position`, else the champ-select inferred roles) as `+1,250`, plus a team total. Labeled "item gold" because it's not total gold.
+### 5.7 Gold diff (overlay `tabpanel`, gray flag `overlay_gold`)
+- **Item gold** = Σ Data Dragon `item[id].gold.total × count` per player. Components count at their own price, consumables are included, and trinkets count 0. Unspent gold isn't visible for other players.
+- **Rows pair by scoreboard position.** The Live Client lists each team in scoreboard order, so enemy row `i` compares with your team's row `i`: the two players side by side on the scoreboard. In ranked and draft games the scoreboard is sorted by role, so rows are lane matchups. Earlier versions inferred lanes from positions; that was replaced in M4.
+- **Display (compact, in the tab panel while Tab is held):**
+  - A thin "Team ±X.Xk" line: all your items minus all theirs.
+  - A tiny chip on each enemy row: "+850", "−1.2k" or "±0". Green when you're ahead, pink when behind, "–" if your team has no player in that row.
+  - Labeled as item gold, not total gold.
 
 ### 5.8 Summoner timers (overlay `tabpanel` + `hud`, gray flag `overlay_timers`)
 - **Spell key:** `rawDisplayName` `GeneratedTip_SummonerSpell_<Key>_DisplayName` → `<Key>` (e.g. `SummonerFlash`) → Data Dragon `summoner.json` → `cooldown[0]` and icon.

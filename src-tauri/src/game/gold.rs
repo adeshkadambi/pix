@@ -2,60 +2,40 @@
 //!
 //! The Live Client API doesn't give other players' gold, so this is **item gold**: the sum of
 //! each player's items at Data Dragon's full price (`gold.total × count`). It's labeled that way.
-//! Lanes pair players by position: the Live Client's `position` first, else the roles from champ
-//! select.
+//!
+//! Rows pair by **scoreboard position**: the Live Client lists each team in scoreboard order, so
+//! enemy row `i` is compared with your team's row `i`, the two players side by side on the
+//! scoreboard. In ranked and draft games the scoreboard is sorted by role, so rows are lanes.
 
 use std::collections::HashMap;
 
-use crate::builds::Role;
 use crate::ddragon::DData;
-use crate::live::models::{AllGameData, Item, Player};
+use crate::live::models::{AllGameData, Item};
 
 pub fn item_gold(items: &[Item], dd: &DData) -> u32 {
     items.iter().map(|it| dd.items.get(&it.item_id).map(|i| i.gold_total).unwrap_or(0) * it.count.max(1)).sum()
-}
-
-/// Live Client position → role. Empty or "NONE" in some modes.
-pub fn role_of(position: &str) -> Option<Role> {
-    match position.to_ascii_uppercase().as_str() {
-        "TOP" => Some(Role::Top),
-        "JUNGLE" => Some(Role::Jungle),
-        "MIDDLE" | "MID" => Some(Role::Mid),
-        "BOTTOM" | "ADC" => Some(Role::Adc),
-        "UTILITY" | "SUPPORT" => Some(Role::Support),
-        _ => None,
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GoldSummary {
     pub ally_total: u32,
     pub enemy_total: u32,
-    /// Enemy champion (Data Dragon id) → your laner's item gold minus theirs.
-    pub lanes: HashMap<String, i32>,
-    /// Enemy champion → their item gold.
-    pub enemy_gold: HashMap<String, u32>,
+    /// Enemy champion (Data Dragon id) → item gold of your player in the same scoreboard row
+    /// minus theirs. Missing when your team has no player in that row.
+    pub rows: HashMap<String, i32>,
 }
 
-/// `fallback_roles`: Data Dragon champion id → role from champ select, used when the Live
-/// Client gives no position.
-pub fn summarize(game: &AllGameData, dd: &DData, fallback_roles: &HashMap<String, Role>) -> GoldSummary {
-    let role = |p: &Player| role_of(&p.position).or_else(|| fallback_roles.get(p.ddragon_id()).copied());
-    let allies: Vec<(&Player, u32)> = game.allies().map(|p| (p, item_gold(&p.items, dd))).collect();
-    let enemies: Vec<(&Player, u32)> = game.enemies().map(|p| (p, item_gold(&p.items, dd))).collect();
-    let lanes = enemies
-        .iter()
-        .filter_map(|(enemy, eg)| {
-            let r = role(enemy)?;
-            let (_, ag) = allies.iter().find(|(ally, _)| role(ally) == Some(r))?;
-            Some((enemy.ddragon_id().to_owned(), *ag as i32 - *eg as i32))
-        })
-        .collect();
+pub fn summarize(game: &AllGameData, dd: &DData) -> GoldSummary {
+    let allies: Vec<u32> = game.allies().map(|p| item_gold(&p.items, dd)).collect();
+    let enemies: Vec<(&str, u32)> = game.enemies().map(|p| (p.ddragon_id(), item_gold(&p.items, dd))).collect();
     GoldSummary {
-        ally_total: allies.iter().map(|(_, g)| g).sum(),
+        ally_total: allies.iter().sum(),
         enemy_total: enemies.iter().map(|(_, g)| g).sum(),
-        lanes,
-        enemy_gold: enemies.iter().map(|(p, g)| (p.ddragon_id().to_owned(), *g)).collect(),
+        rows: enemies
+            .iter()
+            .enumerate()
+            .filter_map(|(i, (champ, eg))| Some((champ.to_string(), *allies.get(i)? as i32 - *eg as i32)))
+            .collect(),
     }
 }
 
@@ -87,40 +67,33 @@ mod tests {
     }
 
     #[test]
-    fn lanes_pair_by_position_and_totals_add_up() {
-        let s = summarize(&game(), &dd(), &HashMap::new());
-        // Briar (jungle) 8608 vs Viego 3200.
-        assert_eq!(s.lanes["Viego"], 8608 - 3200);
-        // Aatrox (Eclipse 2800 + Steelcaps 1200) vs Malphite (Thornmail 2450 + Steelcaps 1200).
-        assert_eq!(s.lanes["Malphite"], 4000 - 3650);
-        // Thresh has no items vs Leona's Locket.
-        assert_eq!(s.lanes["Leona"], -2200);
+    fn rows_pair_by_scoreboard_order_and_totals_add_up() {
+        let s = summarize(&game(), &dd());
+        // Row 1: Aatrox (Eclipse 2800 + Steelcaps 1200) vs Malphite (Thornmail 2450 + Steelcaps 1200).
+        assert_eq!(s.rows["Malphite"], 4000 - 3650);
+        // Row 2: Briar 8608 vs Viego 3200.
+        assert_eq!(s.rows["Viego"], 8608 - 3200);
+        // Row 5: Thresh has no items vs Leona's Locket.
+        assert_eq!(s.rows["Leona"], -2200);
         assert_eq!(s.ally_total, 4000 + 8608 + 2900 + 3450);
         assert_eq!(s.enemy_total, 3650 + 3200 + 2900 + 3000 + 2200);
-        assert_eq!(s.enemy_gold["Kaisa"], 3000);
     }
 
     #[test]
-    fn falls_back_to_champ_select_roles_without_positions() {
+    fn positions_dont_matter_only_row_order() {
         let mut g = game();
         for p in &mut g.all_players {
             p.position = "NONE".into();
         }
-        assert!(summarize(&g, &dd(), &HashMap::new()).lanes.is_empty());
-        let roles: HashMap<String, Role> = [("Briar", Role::Jungle), ("Viego", Role::Jungle), ("Ahri", Role::Mid)]
-            .into_iter()
-            .map(|(c, r)| (c.to_string(), r))
-            .collect();
-        let s = summarize(&g, &dd(), &roles);
-        assert_eq!(s.lanes.len(), 1, "only Viego has a known lane partner");
-        assert_eq!(s.lanes["Viego"], 8608 - 3200);
+        assert_eq!(summarize(&g, &dd()).rows["Viego"], 8608 - 3200);
     }
 
     #[test]
-    fn positions() {
-        assert_eq!(role_of("MIDDLE"), Some(Role::Mid));
-        assert_eq!(role_of("utility"), Some(Role::Support));
-        assert_eq!(role_of("NONE"), None);
-        assert_eq!(role_of(""), None);
+    fn uneven_teams_leave_extra_enemy_rows_without_a_diff() {
+        let mut g = game();
+        g.all_players.retain(|p| p.ddragon_id() != "Thresh");
+        let s = summarize(&g, &dd());
+        assert!(!s.rows.contains_key("Leona"), "your team has no fifth row");
+        assert_eq!(s.rows.len(), 4);
     }
 }
