@@ -23,6 +23,7 @@ export function StatusPill(props: { status: ClientStatus | undefined }) {
       <span class={`status-dot status-dot--${tone()}`} />
       <span>
         {connected() ? `Client connected · ${PHASE_LABEL[phase()]}` : "Waiting for League client"}
+        {props.status?.summoners_rift === false ? " · no build data off Summoner's Rift" : ""}
       </span>
     </div>
   );

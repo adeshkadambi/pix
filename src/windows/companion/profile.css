@@ -1,0 +1,315 @@
+/* Profile screen, following design/Main.dc.html. */
+.profile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.profile-side {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.profile-main {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.stack-12 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.strong {
+  font-weight: 600;
+}
+.medium {
+  font-weight: 500;
+}
+.small-13 {
+  font-size: 13px;
+}
+.eyebrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Icons with an initials fallback */
+.asset-icon {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--raised);
+  color: var(--text-2);
+  font-weight: 600;
+}
+.asset-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Summoner header */
+.summoner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.summoner-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  font-size: 14px;
+}
+.summoner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.summoner-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.summoner-name .muted {
+  font-weight: 500;
+}
+
+/* Ranked cards */
+.ranked-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.ranked {
+  background: var(--card-inner);
+  border-radius: var(--r-small);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ranked-tier {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+}
+.ranked-lp {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Recent form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.form-record {
+  color: var(--text);
+  font-weight: 600;
+}
+.form-bar {
+  display: flex;
+  gap: 6px;
+}
+.form-tick {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+}
+.form-tick--win {
+  background: var(--good);
+}
+.form-tick--loss {
+  background: var(--border-tile);
+}
+.form-tick--remake {
+  background: var(--border-strong);
+}
+
+/* Champion list */
+.champ-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.champ-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  font-size: 12px;
+}
+.champ-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.champ-wr {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* Match history */
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.history-head h1 {
+  font-size: 22px;
+}
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  color: var(--text);
+  font: 500 13px var(--font-body);
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--border-tile-strong);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.match {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.match-meta {
+  width: 112px;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.result {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+}
+.result--win {
+  background: var(--good-bg);
+  color: var(--good-text);
+}
+.result--loss {
+  background: var(--bad-bg);
+  color: var(--bad-text);
+}
+.result--remake {
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+}
+.match-champ {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 160px;
+}
+.match-champ-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  font-size: 13px;
+}
+.match-champ-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.spells {
+  display: flex;
+  gap: 4px;
+}
+.spell-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 8px;
+}
+.match-kda {
+  display: flex;
+  flex-direction: column;
+  width: 108px;
+}
+.kda {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+}
+.match-cs {
+  display: flex;
+  flex-direction: column;
+  width: 96px;
+}
+.match-items {
+  flex: 1 1 250px;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.item-slot {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-tile);
+  border: 1px solid var(--border-tile);
+  background: var(--tile);
+  font-size: 11px;
+}
+.item-slot--empty {
+  flex: none;
+  box-sizing: border-box;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+}

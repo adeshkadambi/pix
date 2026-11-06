@@ -7,9 +7,10 @@ Personal, Windows-only League of Legends companion and overlay (Tauri v2 + Rust)
 - In-game overlay: gold diff and summoner spell timers (clickable while holding TAB)
 - Second-screen companion: pre-game build, threat card, enemy purchase feed, post-game review
 
-**Status:** M0 scaffold. The app opens with the themed companion window, Settings (feature flags, all
-off by default) and About. Screens are placeholders until M1+. UI designs are in
-[design/](design/README.md), exported from Claude Design.
+**Status:** M1. Pix finds and connects to the League client (read-only, TLS pinned to Riot's root),
+follows the game phase, and shows your own profile, ranked stats and match history with client
+icons. Settings has the feature flags (all off by default). Draft, Live and Review are placeholders
+until M2+. UI designs are in [design/](design/README.md), exported from Claude Design.
 
 See [SPEC.md](SPEC.md) for the full specification, compliance rules and milestones (M0–M6).
 
@@ -29,6 +30,7 @@ winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --wait
 npm install
 npm run tauri dev                              # run the app
 cargo test --manifest-path src-tauri/Cargo.toml  # Rust tests; also regenerates src/lib/types
+cargo test --manifest-path src-tauri/Cargo.toml --lib -- --ignored live_connects  # against a running client
 npm run compliance                             # banned-API and GET-only check (SPEC §2)
 npm run tauri build                            # release .exe and installer
 ```
@@ -45,7 +47,12 @@ src/                 SolidJS frontend (one page; each window picks its view by l
   windows/tabpanel   overlay shown while TAB is held
   lib/               IPC and event helpers, generated types
   styles/            design tokens
-src-tauri/src/       Rust backend: config + flags, events, overlay window styles
+src-tauri/src/       Rust backend
+  lcu/               League client: discovery, lockfile, GET-only HTTP, WebSocket, supervisor
+  riot_tls.rs        TLS pinned to Riot's root certificate (certs/riotgames.pem)
+  profile.rs         native profile view
+  asset_protocol.rs  lcu-asset:// icons (allowlisted, cached, Data Dragon fallback)
+  ddragon.rs         Data Dragon download and disk cache
 design/              Claude Design mockups and tokens
 scripts/             compliance check
 ```

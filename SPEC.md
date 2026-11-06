@@ -229,7 +229,7 @@ A native screen (`design/Main.dc.html`), built only from your own account's Leag
 ## 6. Asset pipeline (`lcu-asset` protocol)
 - Registered with `register_asynchronous_uri_scheme_protocol("lcu-asset", …)`. On Windows the frontend URL is `http://lcu-asset.localhost/<path>`; build it with `convertFileSrc(path, 'lcu-asset')`.
 - The handler accepts **GET only**, with an **allowlist of paths under `/lol-game-data/assets/`** so the webview can't call other client endpoints with the user's credentials. It adds basic auth from the current lockfile, fetches through the pinned TLS client, and returns the bytes with the upstream content type.
-- Memory LRU (about 32 MB) plus a disk cache per patch. When the client isn't running, it serves from the disk cache, or falls back to the Data Dragon CDN image (`ddragon.leagueoflegends.com/cdn/<ver>/img/...`), cached the same way.
+- Memory LRU (about 32 MB) plus a disk cache keyed by asset path (`app_cache_dir/assets/…`). When the client isn't running, it serves from the disk cache, or falls back to the Data Dragon CDN image (`ddragon.leagueoflegends.com/cdn/<ver>/img/...`), cached the same way.
 - Icon paths come from LCU `/lol-game-data/assets/v1/{champion-summary,items,summoner-spells,perks}.json` → `iconPath`.
 
 ## 7. Frontend

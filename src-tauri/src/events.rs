@@ -12,11 +12,11 @@ use crate::config::Config;
 /// Event names. Keep in sync with `src/lib/events.ts`.
 pub const CLIENT_STATUS: &str = "client-status";
 pub const CONFIG_CHANGED: &str = "config-changed";
+pub const PROFILE: &str = "profile";
 
 /// League client gameflow phase (SPEC §5.1). Filled in from the client in M1.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, TS)]
 #[ts(export)]
-#[allow(dead_code, reason = "phases other than None are set by the client connection in M1")]
 pub enum Phase {
     #[default]
     None,
@@ -33,6 +33,9 @@ pub enum Phase {
 pub struct ClientStatus {
     pub connected: bool,
     pub phase: Phase,
+    /// In champ select or in game: whether this is a Summoner's Rift classic game, the only
+    /// mode with build data (compliance rule 6). `null` outside those phases.
+    pub summoners_rift: Option<bool>,
 }
 
 pub fn emit_client_status(app: &AppHandle, status: &ClientStatus) {
