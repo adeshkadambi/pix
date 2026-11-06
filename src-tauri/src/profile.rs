@@ -80,6 +80,9 @@ pub struct MatchSummary {
     /// LP gained or lost, when the game log could prove it (§5.12).
     #[serde(default)]
     pub lp_change: Option<LpChange>,
+    /// Pix saved a post-game review for this game.
+    #[serde(default)]
+    pub has_review: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
@@ -236,6 +239,7 @@ fn summarize(game: &RawGame, catalog: &Catalog) -> Option<MatchSummary> {
         items: [s.item0, s.item1, s.item2, s.item3, s.item4, s.item5].map(|id| catalog.item(id)).to_vec(),
         spells: vec![catalog.spell(me.spell1_id), catalog.spell(me.spell2_id)],
         lp_change: None,
+        has_review: false,
     })
 }
 
@@ -310,6 +314,7 @@ async fn fetch(app: &AppHandle, http: &LcuHttp, catalog: &Catalog) -> Result<Pro
         ),
     )?;
     let now = now_ms();
+    *app.state::<AppState>().puuid.lock().unwrap() = Some(summoner.puuid.clone());
     let solo = ranked_queue(&ranked, lp::SOLO);
     let flex = ranked_queue(&ranked, lp::FLEX);
     let matches = merge_with_log(app, &summoner.puuid, &[(lp::SOLO, &solo), (lp::FLEX, &flex)], summaries(history, catalog), now);
@@ -502,7 +507,7 @@ mod tests {
         let json = r#"{"game_id":1,"champion":{"id":1,"name":"Annie","icon":""},"queue":"ARAM","result":"Win",
             "kills":1,"deaths":1,"assists":1,"cs":1,"duration_secs":1,"created_ms":1,"items":[],"spells":[]}"#;
         let m: MatchSummary = serde_json::from_str(json).unwrap();
-        assert_eq!((m.queue_id, m.lp_change), (0, None));
+        assert_eq!((m.queue_id, m.lp_change, m.has_review), (0, None, false));
     }
 
     #[test]

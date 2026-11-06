@@ -11,4 +11,8 @@ items: Array<Icon | null>, spells: Array<Icon>,
 /**
  * LP gained or lost, when the game log could prove it (§5.12).
  */
-lp_change: LpChange | null, };
+lp_change: LpChange | null, 
+/**
+ * Pix saved a post-game review for this game.
+ */
+has_review: boolean, };

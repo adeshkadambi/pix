@@ -22,11 +22,11 @@ function useNow() {
   return now;
 }
 
-export function Profile(props: { connected: boolean }) {
+export function Profile(props: { connected: boolean; onOpenReview: (gameId: number) => void }) {
   const profile = eventSignal("profile", getProfile);
   return (
     <Switch>
-      <Match when={profile()}>{(p) => <ProfileScreen profile={p()} connected={props.connected} />}</Match>
+      <Match when={profile()}>{(p) => <ProfileScreen profile={p()} connected={props.connected} onOpenReview={props.onOpenReview} />}</Match>
       <Match when={props.connected}>
         <Placeholder title="Loading your profile">Reading your ranked stats and match history from the client.</Placeholder>
       </Match>
@@ -39,7 +39,7 @@ export function Profile(props: { connected: boolean }) {
   );
 }
 
-function ProfileScreen(props: { profile: ProfileView; connected: boolean }) {
+function ProfileScreen(props: { profile: ProfileView; connected: boolean; onOpenReview: (gameId: number) => void }) {
   const now = useNow();
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string>();
@@ -133,7 +133,7 @@ function ProfileScreen(props: { profile: ProfileView; connected: boolean }) {
           </p>
         </Show>
         <Show when={p().matches.length > 0} fallback={<p class="muted">No recent games.</p>}>
-          <For each={p().matches}>{(m) => <MatchRow match={m} now={now()} />}</For>
+          <For each={p().matches}>{(m) => <MatchRow match={m} now={now()} onOpenReview={props.onOpenReview} />}</For>
           <p class="muted small-13 history-note">
             LP changes show for ranked games played while Pix is open; "? LP" means Pix wasn't
             tracking your rank then. Older games come from Pix's local game log, kept on this PC.
@@ -183,7 +183,7 @@ function LpBadge(props: { change: LpChange }) {
   );
 }
 
-function MatchRow(props: { match: MatchSummary; now: number }) {
+function MatchRow(props: { match: MatchSummary; now: number; onOpenReview: (gameId: number) => void }) {
   const m = () => props.match;
   return (
     <article class="match">
@@ -210,6 +210,11 @@ function MatchRow(props: { match: MatchSummary; now: number }) {
         <span class="muted small">
           {duration(m().duration_secs)} · {timeAgo(m().created_ms, props.now)}
         </span>
+        <Show when={m().has_review}>
+          <button type="button" class="link-btn" onClick={() => props.onOpenReview(m().game_id)}>
+            Review
+          </button>
+        </Show>
       </div>
       <div class="match-champ">
         <AssetIcon path={m().champion.icon} name={m().champion.name} class="match-champ-icon" decorative />

@@ -2,4 +2,5 @@
 
 pub mod models;
 pub mod poller;
+pub mod postgame;
 pub mod view;

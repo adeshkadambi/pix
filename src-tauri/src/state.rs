@@ -11,6 +11,7 @@ use crate::config::Config;
 use crate::db::Db;
 use crate::ddragon::DData;
 use crate::events::{self, ClientStatus};
+use crate::game::review::ReviewView;
 use crate::lcu::catalog::Catalog;
 use crate::lcu::http::LcuHttp;
 use crate::live::poller::LiveRuntime;
@@ -40,6 +41,10 @@ pub struct AppState {
     pub overlay: SharedOverlay,
     /// League install folder of the connected client (holds `Config/game.cfg`).
     pub install_dir: Mutex<Option<PathBuf>>,
+    /// Your account id, for the game log. Never another player's.
+    pub puuid: Mutex<Option<String>>,
+    /// The latest post-game review (also saved to the game log).
+    pub review: Mutex<Option<ReviewView>>,
 }
 
 impl AppState {
@@ -69,6 +74,8 @@ impl AppState {
             live: Mutex::new(LiveRuntime::default()),
             overlay: SharedOverlay::default(),
             install_dir: Mutex::new(None),
+            puuid: Mutex::new(None),
+            review: Mutex::new(None),
         }
     }
 

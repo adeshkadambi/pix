@@ -97,7 +97,7 @@ pub struct RunePageView {
     pub smoothed_wr: f32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 pub struct SituationalView {
     pub item: Icon,
@@ -202,6 +202,8 @@ pub struct DraftRuntime {
     /// Debug fixture mode: treat the draft as Summoner's Rift.
     pub force_rift: bool,
     pub chosen: ChosenBuild,
+    /// The build data behind the current view, for the live advisor.
+    pub build_set: Option<BuildSet>,
     generation: u64,
     last_key: String,
     pub view: Option<DraftView>,
@@ -218,17 +220,17 @@ impl BuildService {
         Self { provider: OpggProvider::new(http), cache: BuildCache::new(cache_root) }
     }
 
-    async fn base(&self, patch: &str, champ: &str, role: Role) -> Result<BuildSet, ProviderError> {
+    pub(crate) async fn base(&self, patch: &str, champ: &str, role: Role) -> Result<BuildSet, ProviderError> {
         let key = cache::key(&["base", champ, role.opgg()]);
         self.cache.get_or_fetch(self.provider.id(), patch, &key, || self.provider.base(champ, role)).await
     }
 
-    async fn matchup(&self, patch: &str, champ: &str, role: Role, opp: &str) -> Result<BuildSet, ProviderError> {
+    pub(crate) async fn matchup(&self, patch: &str, champ: &str, role: Role, opp: &str) -> Result<BuildSet, ProviderError> {
         let key = cache::key(&["matchup", champ, role.opgg(), "vs", opp]);
         self.cache.get_or_fetch(self.provider.id(), patch, &key, || self.provider.matchup(champ, role, opp)).await
     }
 
-    async fn traits(&self, patch: &str, champ: &str) -> Result<ChampionTraits, ProviderError> {
+    pub(crate) async fn traits(&self, patch: &str, champ: &str) -> Result<ChampionTraits, ProviderError> {
         let key = cache::key(&["traits", champ]);
         self.cache.get_or_fetch(self.provider.id(), patch, &key, || self.provider.traits(champ)).await
     }
@@ -489,6 +491,9 @@ async fn compute(app: &AppHandle, inputs: &Inputs, catalog: &Catalog, dd: &DData
     }
     let items = |ids: &[u32]| ids.iter().map(|id| catalog.item_icon(*id as i32)).collect::<Vec<_>>();
 
+    if app.state::<AppState>().draft.lock().unwrap().generation == inputs.generation {
+        app.state::<AppState>().draft.lock().unwrap().build_set = Some(build.clone());
+    }
     view.build = Some(BuildView {
         champion: catalog.champion(me.champion_id),
         role,

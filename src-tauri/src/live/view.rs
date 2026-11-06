@@ -4,9 +4,12 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::builds::draft::{DraftView, RunePageView, ThreatView};
+use crate::builds::BuildSet;
+use crate::builds::draft::{DraftView, RunePageView, SituationalView, ThreatView};
 use crate::ddragon::DData;
+use crate::game::advisor::{self, EnemyState};
 use crate::game::gold;
+use crate::game::kills::{self, KillRecord};
 use crate::game::purchases::PurchaseFeed;
 use crate::game::spells::{self, TimerBook};
 use crate::lcu::catalog::{Catalog, Icon};
@@ -123,6 +126,29 @@ pub struct OverlayFeatures {
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export)]
+pub struct AdviceLog {
+    pub game_time: f64,
+    pub text: String,
+}
+
+/// The live item advisor's card: 2–3 picks with reasons, and how the top pick changed.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+pub struct AdviceView {
+    pub picks: Vec<SituationalView>,
+    /// Newest first.
+    pub log: Vec<AdviceLog>,
+}
+
+/// What the advisor needs, passed only when it's turned on.
+pub struct AdvisorInputs<'a> {
+    pub build_set: &'a BuildSet,
+    pub kills: &'a [KillRecord],
+    pub log: &'a [AdviceLog],
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
 pub struct LiveView {
     pub game_time: f64,
     pub summoners_rift: bool,
@@ -138,6 +164,8 @@ pub struct LiveView {
     pub timers_enabled: bool,
     /// Team item gold, when the gold feature is on.
     pub team_gold: Option<TeamGold>,
+    /// Live item advisor, when it's turned on (Summoner's Rift only).
+    pub advice: Option<AdviceView>,
 }
 
 fn champion_icon(p: &Player, catalog: &Catalog, dd: &DData) -> Icon {
@@ -214,6 +242,7 @@ pub fn build_view(
     dd: &DData,
     window_mode: Option<WindowMode>,
     features: OverlayFeatures,
+    advisor_inputs: Option<AdvisorInputs<'_>>,
 ) -> LiveView {
     let rift = game.is_summoners_rift();
     let gold = features.gold.then(|| gold::summarize(game, dd));
@@ -279,11 +308,45 @@ pub fn build_view(
             })
             .collect(),
         window_mode,
+        advice: advisor_inputs.filter(|_| rift).map(|a| advice(game, &a, catalog, dd)),
         timers_enabled: features.timers,
         team_gold: gold.as_ref().map(|g| TeamGold { ally: g.ally_total, enemy: g.enemy_total }),
     }
 }
 
+
+/// Advisor picks for this snapshot (the log is kept by the poller).
+fn advice(game: &AllGameData, a: &AdvisorInputs<'_>, catalog: &Catalog, dd: &DData) -> AdviceView {
+    let enemies: Vec<EnemyState> = game
+        .enemies()
+        .map(|p| EnemyState {
+            key: p.ddragon_id().to_owned(),
+            name: champion_icon(p, catalog, dd).name,
+            tags: dd.champion_key(p.ddragon_id()).and_then(|k| dd.champions.get(&k)).map(|c| c.tags.clone()).unwrap_or_default(),
+            items: p.items.iter().map(|i| i.item_id).collect(),
+            item_gold: gold::item_gold(&p.items, dd),
+            kills: p.scores.kills,
+            deaths: p.scores.deaths,
+            assists: p.scores.assists,
+            kills_on_me: kills::kills_on_me(a.kills, p.ddragon_id()),
+        })
+        .collect();
+    let (my_gold, owned) = game
+        .me()
+        .map(|m| (gold::item_gold(&m.items, dd), m.items.iter().map(|i| i.item_id).collect::<Vec<_>>()))
+        .unwrap_or_default();
+    let picks = advisor::advise(a.build_set, &enemies, my_gold, &owned, dd)
+        .iter()
+        .map(|p| SituationalView {
+            item: catalog.item_icon(p.item_id as i32),
+            reason: p.reason.clone(),
+            play: p.ranked.play,
+            win: p.ranked.win,
+            smoothed_wr: p.ranked.smoothed_wr,
+        })
+        .collect();
+    AdviceView { picks, log: a.log.to_vec() }
+}
 
 /// League's `Config/game.cfg` → `[General] WindowMode=` (0 full screen, 1 windowed, 2 borderless).
 pub fn parse_window_mode(game_cfg: &str) -> Option<WindowMode> {
@@ -378,7 +441,7 @@ mod tests {
 
     #[test]
     fn builds_the_live_view() {
-        let v = build_view(&game(), Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), Some(WindowMode::Borderless), OverlayFeatures::default());
+        let v = build_view(&game(), Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), Some(WindowMode::Borderless), OverlayFeatures::default(), None);
         let me = v.me.unwrap();
         assert_eq!((me.champion.name.as_str(), me.level, me.kills, me.deaths, me.assists, me.cs, me.gold), ("Briar", 11, 6, 2, 5, 142, 1130));
         assert!(v.summoners_rift && v.build_note.is_none());
@@ -400,15 +463,15 @@ mod tests {
 
     #[test]
     fn no_build_for_another_champion_or_off_the_rift() {
-        let v = build_view(&game(), Some(&draft(1)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default());
+        let v = build_view(&game(), Some(&draft(1)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default(), None);
         assert!(v.build.is_none());
         assert_eq!(v.build_note.as_deref(), Some("The champ select build was for Briar."));
         let mut aram = game();
         aram.game_data.map_number = 12;
         aram.game_data.game_mode = "ARAM".into();
-        let v = build_view(&aram, Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default());
+        let v = build_view(&aram, Some(&draft(233)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default(), None);
         assert!(v.build.is_none() && v.threats.is_empty() && !v.summoners_rift);
-        let v = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default());
+        let v = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default(), None);
         assert_eq!(v.build_note.as_deref(), Some("No build from champ select for this game."));
     }
 
@@ -418,7 +481,7 @@ mod tests {
         // Viego's Flash, clicked at 18:20 (1100 s) with no haste: 300 s.
         timers.toggle("Viego", 0, 1100.0, 300.0);
         timers.set_cosmic("Viego", true);
-        let v = build_view(&game(), None, &PurchaseFeed::default(), &timers, &catalog(), &dd(), None, OverlayFeatures::default());
+        let v = build_view(&game(), None, &PurchaseFeed::default(), &timers, &catalog(), &dd(), None, OverlayFeatures::default(), None);
         let viego = v.enemies.iter().find(|e| e.key == "Viego").unwrap();
         assert!(viego.cosmic);
         assert_eq!(viego.haste, 18);
@@ -438,12 +501,53 @@ mod tests {
         for (id, gold) in [(3078, 3333), (3748, 3300), (3047, 1200), (1036, 350), (2055, 75), (3153, 3200)] {
             d.items.insert(id, crate::ddragon::ItemInfo { name: String::new(), tags: vec![], description: String::new(), gold_total: gold, completed: true, on_rift: true });
         }
-        let off = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures::default());
+        let off = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures::default(), None);
         assert!(off.team_gold.is_none() && off.enemies.iter().all(|e| e.row_gold.is_none()));
-        let on = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures { timers: true, gold: true });
+        let on = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures { timers: true, gold: true }, None);
         assert!(on.timers_enabled && on.team_gold.is_some());
         let viego = on.enemies.iter().find(|e| e.key == "Viego").unwrap();
         assert_eq!(viego.row_gold, Some(RowGold { yours: 8608, theirs: 3200 }), "Briar's items vs Viego's");
+    }
+
+    #[test]
+    fn advisor_card_only_when_passed_and_on_the_rift() {
+        use crate::builds::ranking::rank;
+        use crate::game::kills::{Actor, KillRecord};
+        let mut d = dd();
+        let info = |tags: &[&str], desc: &str, gold: u32| crate::ddragon::ItemInfo {
+            name: String::new(),
+            tags: tags.iter().map(|s| s.to_string()).collect(),
+            description: desc.into(),
+            gold_total: gold,
+            completed: true,
+            on_rift: true,
+        };
+        d.items.insert(3153, info(&["Damage", "LifeSteal"], "", 3200)); // Viego's BotRK
+        d.items.insert(3033, info(&["Damage", "ArmorPenetration"], "inflicts 40% Grievous Wounds", 3000));
+        d.items.insert(3026, info(&["Damage", "Armor"], "", 3200));
+        let build = BuildSet { item_pool: rank(vec![(3033, 300, 160), (3026, 900, 470)], 0.5), ..Default::default() };
+        let kills = vec![KillRecord {
+            event_id: 2,
+            time: 312.2,
+            killer: Actor::Champion("Viego".into()),
+            victim: "Briar".into(),
+            assisters: vec![],
+            victim_is_me: true,
+            killer_is_me: false,
+        }];
+        let log = vec![AdviceLog { game_time: 300.0, text: "earlier".into() }];
+        let inputs = || Some(AdvisorInputs { build_set: &build, kills: &kills, log: &log });
+        let v = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures::default(), inputs());
+        let advice = v.advice.unwrap();
+        assert_eq!(advice.picks[0].item.id, 3033, "Viego heals with BotRK and killed you: anti-heal first");
+        assert!(advice.picks[0].reason.starts_with("Viego 5/3/3, killed you 1×"));
+        assert_eq!(advice.log.len(), 1);
+        let off = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures::default(), None);
+        assert!(off.advice.is_none());
+        let mut aram = game();
+        aram.game_data.map_number = 12;
+        let v = build_view(&aram, None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures::default(), inputs());
+        assert!(v.advice.is_none(), "Summoner's Rift only");
     }
 
     #[test]

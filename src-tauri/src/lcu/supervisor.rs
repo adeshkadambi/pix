@@ -109,24 +109,28 @@ async fn run_session(app: &AppHandle, http: &LcuHttp, lockfile: &Lockfile, lock_
 async fn on_phase_change(app: &AppHandle, http: &LcuHttp, old: Option<Phase>, new: Phase) {
     tracing::info!("gameflow phase: {new:?}");
     // Compliance rule 6: build data only on Summoner's Rift classic games.
-    let rift = if matches!(new, Phase::ChampSelect | Phase::InProgress) {
+    let session = if matches!(new, Phase::ChampSelect | Phase::InProgress) {
         match http.get_json::<serde_json::Value>("/lol-gameflow/v1/session").await {
-            Ok(session) => Some(is_summoners_rift(&session)),
+            Ok(session) => Some(session),
             Err(e) => {
                 tracing::warn!("couldn't read gameflow session: {e}");
-                Some(false)
+                None
             }
         }
     } else {
         None
     };
+    let rift = matches!(new, Phase::ChampSelect | Phase::InProgress).then(|| session.as_ref().is_some_and(is_summoners_rift));
     update_client_status(app, |s| s.summoners_rift = rift);
 
     // Live game data while a game runs (SPEC §5.6).
     if new == Phase::InProgress {
-        live::poller::start(app);
+        let game_id = session.as_ref().and_then(|s| s.pointer("/gameData/gameId")).and_then(serde_json::Value::as_u64);
+        live::poller::start(app, game_id);
     } else if old == Some(Phase::InProgress) {
         live::poller::stop(app);
+        // The game ended: build and save its review (SPEC §5.9).
+        live::postgame::review_soon(app);
     }
 
     // Draft pipeline: a fresh draft per champ select, seeded from the current session.
@@ -190,7 +194,7 @@ fn load_ddragon_for_client(app: &AppHandle, http: &LcuHttp) {
 fn load_draft_fixture(app: &AppHandle) {
     // `PIX_LIVE_FIXTURE=<allgamedata.json>` replays one Live Client snapshot as a running game.
     if std::env::var("PIX_LIVE_FIXTURE").is_ok() {
-        live::poller::start(app);
+        live::poller::start(app, Some(4242));
     }
     let Ok(path) = std::env::var("PIX_DRAFT_FIXTURE") else { return };
     let app = app.clone();

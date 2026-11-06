@@ -39,12 +39,20 @@ function tabForPhase(phase: Phase): Tab {
 export function Companion() {
   const status = eventSignal("client-status", getClientStatus);
   const [view, setView] = createSignal<View>("profile");
+  // Which game the Review tab shows: null is the latest review.
+  const [reviewId, setReviewId] = createSignal<number | null>(null);
+  const openReview = (gameId: number) => {
+    setReviewId(gameId);
+    setView("review");
+  };
 
   // A new draft view (champ select) brings the Draft tab forward from Profile.
   const unlistenDraft = on_("draft", (d) => {
     if (d && view() === "profile") setView("draft");
   });
   onCleanup(() => void unlistenDraft.then((fn) => fn()));
+  const unlistenReview = on_("review", () => setReviewId(null));
+  onCleanup(() => void unlistenReview.then((fn) => fn()));
   const unlistenLive = on_("live", (v) => {
     if (v && (view() === "profile" || view() === "draft")) setView("live");
   });
@@ -73,7 +81,10 @@ export function Companion() {
                 type="button"
                 class="tab"
                 aria-current={view() === tab.id ? "page" : undefined}
-                onClick={() => setView(tab.id)}
+                onClick={() => {
+                  if (tab.id === "review") setReviewId(null);
+                  setView(tab.id);
+                }}
               >
                 {tab.label}
               </button>
@@ -104,7 +115,7 @@ export function Companion() {
       <main class="page">
         <Switch>
           <Match when={view() === "profile"}>
-            <Profile connected={status()?.connected ?? false} />
+            <Profile connected={status()?.connected ?? false} onOpenReview={openReview} />
           </Match>
           <Match when={view() === "draft"}>
             <Draft />
@@ -113,7 +124,7 @@ export function Companion() {
             <InGame />
           </Match>
           <Match when={view() === "review"}>
-            <PostGame />
+            <PostGame gameId={reviewId()} />
           </Match>
           <Match when={view() === "settings"}>
             <Settings />

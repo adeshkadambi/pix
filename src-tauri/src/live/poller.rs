@@ -6,8 +6,9 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use super::models::{AllGameData, Event};
+use super::models::AllGameData;
 use super::view::{self, WindowMode};
+use crate::game::kills::{self, KillRecord};
 use crate::game::purchases::PurchaseFeed;
 use crate::game::spells::{self, TimerBook};
 use crate::overlay;
@@ -22,24 +23,29 @@ const TICK: Duration = Duration::from_secs(1);
 pub struct LiveRuntime {
     task: Option<tauri::async_runtime::JoinHandle<()>>,
     pub view: Option<view::LiveView>,
-    /// Kill events recorded this game, for the post-game review (M5). Memory only.
-    pub kills: Vec<Event>,
+    /// Kills this game, by champion (never player names), for the review and the advisor.
+    pub kills: Vec<KillRecord>,
+    /// The client's game id (from the gameflow session), to link the review to match history.
+    pub game_id: Option<u64>,
+    /// How the advisor's top pick changed, newest first.
+    advice_log: Vec<view::AdviceLog>,
+    last_top_pick: Option<i32>,
     pub window_mode: Option<WindowMode>,
     feed: PurchaseFeed,
     timers: TimerBook,
     /// Latest snapshot, so a timer click can redraw at once.
-    last_game: Option<AllGameData>,
+    pub last_game: Option<AllGameData>,
 }
 
 /// Starts polling for a new game. Safe to call twice.
-pub fn start(app: &AppHandle) {
+pub fn start(app: &AppHandle, game_id: Option<u64>) {
     let state = app.state::<AppState>();
     let mut rt = state.live.lock().unwrap();
     if rt.task.is_some() {
         return;
     }
     let window_mode = read_window_mode(app);
-    *rt = LiveRuntime { window_mode, ..Default::default() };
+    *rt = LiveRuntime { window_mode, game_id, ..Default::default() };
     let app = app.clone();
     rt.task = Some(tauri::async_runtime::spawn(async move { run(app).await }));
     tracing::info!("live game polling started");
@@ -90,9 +96,11 @@ async fn tick(app: &AppHandle, game: AllGameData, first: bool) -> bool {
         let mut rt = state.live.lock().unwrap();
         rt.feed.update(&game, &dd);
         rt.timers.prune(game.game_data.game_time);
-        for e in game.events.events.iter().filter(|e| e.name == "ChampionKill") {
-            if !rt.kills.iter().any(|k| k.id == e.id) {
-                rt.kills.push(e.clone());
+        for e in &game.events.events {
+            if !rt.kills.iter().any(|k| k.event_id == e.id)
+                && let Some(k) = kills::record(e, &game)
+            {
+                rt.kills.push(k);
             }
         }
         rt.last_game = Some(game);
@@ -110,14 +118,30 @@ async fn redraw(app: &AppHandle) -> bool {
     let Some(http) = state.lcu_http() else { return false };
     let Ok(catalog) = profile::catalog(app, &http).await else { return false };
     let draft = state.draft.lock().unwrap().view.clone();
-    let features = {
+    let (features, advisor_on) = {
         let flags = &state.config.lock().unwrap().flags;
-        view::OverlayFeatures { timers: flags.overlay_timers, gold: flags.overlay_gold }
+        (view::OverlayFeatures { timers: flags.overlay_timers, gold: flags.overlay_gold }, flags.live_advisor)
     };
+    let build_set = if advisor_on { state.draft.lock().unwrap().build_set.clone() } else { None };
     let view = {
         let mut rt = state.live.lock().unwrap();
-        let Some(game) = rt.last_game.as_ref() else { return false };
-        let view = view::build_view(game, draft.as_ref(), &rt.feed, &rt.timers, &catalog, &dd, rt.window_mode, features);
+        let Some(game) = rt.last_game.clone() else { return false };
+        let game = &game;
+        let advisor = build_set.as_ref().map(|b| view::AdvisorInputs { build_set: b, kills: &rt.kills, log: &rt.advice_log });
+        let mut view = view::build_view(game, draft.as_ref(), &rt.feed, &rt.timers, &catalog, &dd, rt.window_mode, features, advisor);
+        // Log when the advisor's top pick changes.
+        if let Some(advice) = view.advice.as_mut() {
+            let top = advice.picks.first().map(|p| p.item.id);
+            if top.is_some() && top != rt.last_top_pick {
+                let p = &advice.picks[0];
+                let t = game.game_data.game_time;
+                let text = format!("{} → {} is now the top pick", p.reason, p.item.name);
+                rt.advice_log.insert(0, view::AdviceLog { game_time: t, text });
+                rt.advice_log.truncate(5);
+                advice.log = rt.advice_log.clone();
+            }
+            rt.last_top_pick = top;
+        }
         if rt.view.as_ref() == Some(&view) {
             return true;
         }

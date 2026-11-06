@@ -7,6 +7,7 @@ import type { DraftView } from "./types/DraftView";
 import type { LiveView } from "./types/LiveView";
 import type { OverlayMode } from "./types/OverlayMode";
 import type { ProfileView } from "./types/ProfileView";
+import type { ReviewView } from "./types/ReviewView";
 import type { Role } from "./types/Role";
 
 export const getConfig = () => invoke<Config>("get_config");
@@ -35,6 +36,9 @@ export const chooseBuild = (kind: "runes" | "core", index: number) => invoke<voi
 
 /** The current game's view, or null when no game is running. */
 export const getLive = () => invoke<LiveView | null>("get_live");
+
+/** A saved post-game review (gameId), or the latest one. */
+export const getReview = (gameId: number | null) => invoke<ReviewView | null>("get_review", { gameId });
 
 /** Start an enemy's summoner spell timer, or clear it if it's running. */
 export const toggleTimer = (champion: string, slot: number) => invoke<void>("toggle_timer", { champion, slot });

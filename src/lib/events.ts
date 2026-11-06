@@ -8,6 +8,7 @@ import type { DraftView } from "./types/DraftView";
 import type { LiveView } from "./types/LiveView";
 import type { OverlayMode } from "./types/OverlayMode";
 import type { ProfileView } from "./types/ProfileView";
+import type { ReviewView } from "./types/ReviewView";
 
 export interface EventMap {
   "client-status": ClientStatus;
@@ -15,6 +16,7 @@ export interface EventMap {
   profile: ProfileView | null;
   draft: DraftView | null;
   live: LiveView | null;
+  review: ReviewView | null;
   "overlay-mode": OverlayMode;
 }
 

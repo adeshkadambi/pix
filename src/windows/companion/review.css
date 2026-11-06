@@ -1,0 +1,120 @@
+/* Post-game review. Reuses live.css / draft.css helpers (cards, icons, rows). */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.review-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.review-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+}
+.review-lp {
+  margin-left: auto;
+  font-size: 15px;
+}
+
+/* Who killed you */
+.killer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.killer-name {
+  flex: 1;
+}
+.killer-count {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent-light);
+}
+.killer-assists {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Death timeline */
+.timeline {
+  position: relative;
+  height: 52px;
+  margin-top: 8px;
+}
+.timeline-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.timeline-mark {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+}
+.timeline-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--bad-text);
+  font-size: 8px;
+}
+.timeline-label {
+  position: absolute;
+  bottom: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.timeline-label--start {
+  left: 0;
+}
+.timeline-label--end {
+  right: 0;
+}
+
+/* Counters */
+.counter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.counter:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.counter-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Live advisor card (Live screen) */
+.advice {
+  border-color: var(--accent);
+  background: var(--raised);
+}
+.advice-log {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12px;
+}
+.advice-time {
+  width: 40px;
+  flex: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+}

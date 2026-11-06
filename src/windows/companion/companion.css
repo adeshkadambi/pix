@@ -158,8 +158,9 @@ kbd {
   font-weight: 600;
 }
 .risk--off-policy {
-  background: var(--bad-bg);
-  color: var(--bad-text);
+  border: 1px solid var(--border-strong);
+  color: var(--text-2);
+  font-weight: 500;
 }
 
 /* Toggle switch */

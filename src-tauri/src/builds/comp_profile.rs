@@ -111,7 +111,7 @@ pub fn answers(item: &ItemInfo, t: Trait, mine: Option<DamageType>) -> bool {
     }
 }
 
-fn eligible(item: &ItemInfo) -> bool {
+pub fn eligible(item: &ItemInfo) -> bool {
     item.completed && item.on_rift && (item.gold_total >= MIN_LEGENDARY_GOLD || item.tags.iter().any(|t| t == "Boots"))
 }
 

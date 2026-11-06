@@ -3,7 +3,7 @@ import { eventSignal } from "../../lib/events";
 import { getConfig, setFlag, startCalibration } from "../../lib/ipc";
 import type { Flag } from "../../lib/types/Flag";
 
-// Only the off-policy advisor carries a risk label.
+// Only the live advisor carries a note: Riot's policy is stricter about in-game suggestions.
 const FLAGS: { id: Flag; name: string; desc: string; risk?: string }[] = [
   {
     id: "overlay_gold",
@@ -18,8 +18,8 @@ const FLAGS: { id: Flag; name: string; desc: string; risk?: string }[] = [
   {
     id: "live_advisor",
     name: "Live item advisor",
-    desc: "Suggests your next item during the game based on who is fed and who killed you.",
-    risk: "Not Riot-compliant, use at own risk.",
+    desc: "Suggests your next item during the game from OP.GG matchup stats, based on who is ahead and who killed you.",
+    risk: "Off by default, since Riot's policy is stricter about in-game suggestions.",
   },
 ];
 

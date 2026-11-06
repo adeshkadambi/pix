@@ -6,10 +6,11 @@ use std::sync::Mutex;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
+use crate::game::review::ReviewView;
 use crate::lp::{self, GameRef, LpChange, Snapshot};
 use crate::profile::{MatchSummary, RankedQueue};
 
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 const SCHEMA_V1: &str = "
 CREATE TABLE games (
@@ -49,6 +50,16 @@ CREATE TABLE lp_changes (
 );
 ";
 
+const SCHEMA_V2: &str = "
+CREATE TABLE reviews (
+    puuid TEXT NOT NULL,
+    game_id INTEGER NOT NULL,
+    created_ms INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (puuid, game_id)
+);
+";
+
 #[derive(Debug, thiserror::Error)]
 pub enum DbError {
     #[error("database error: {0}")]
@@ -79,6 +90,9 @@ impl Db {
         let version: i32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version < 1 {
             conn.execute_batch(SCHEMA_V1)?;
+        }
+        if version < 2 {
+            conn.execute_batch(SCHEMA_V2)?;
         }
         if version < SCHEMA_VERSION {
             conn.pragma_update(None, "user_version", SCHEMA_VERSION)?;
@@ -195,33 +209,66 @@ impl Db {
     pub fn games(&self, puuid: &str, limit: usize) -> Result<Vec<MatchSummary>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT g.data, l.delta, l.tier_before, l.division_before, l.tier_after, l.division_after, l.lp_after
-             FROM games g LEFT JOIN lp_changes l ON l.puuid = g.puuid AND l.game_id = g.game_id
+            "SELECT g.data, l.delta, l.tier_before, l.division_before, l.tier_after, l.division_after, l.lp_after,
+                    r.game_id IS NOT NULL
+             FROM games g
+             LEFT JOIN lp_changes l ON l.puuid = g.puuid AND l.game_id = g.game_id
+             LEFT JOIN reviews r ON r.puuid = g.puuid AND r.game_id = g.game_id
              WHERE g.puuid = ?1 ORDER BY g.created_ms DESC LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![puuid, limit as i64], |r| {
-            let lp = match r.get::<_, Option<i32>>(1)? {
-                Some(delta) => Some(LpChange {
-                    delta,
-                    tier_before: r.get(2)?,
-                    division_before: r.get(3)?,
-                    tier_after: r.get(4)?,
-                    division_after: r.get(5)?,
-                    lp_after: r.get(6)?,
-                }),
-                None => None,
-            };
-            Ok((r.get::<_, String>(0)?, lp))
-        })?;
+        let rows = stmt.query_map(params![puuid, limit as i64], |r| Ok((r.get::<_, String>(0)?, lp_from(r, 1)?, r.get::<_, bool>(7)?)))?;
         let mut out = Vec::new();
         for row in rows {
-            let (data, lp_change) = row?;
+            let (data, lp_change, has_review) = row?;
             let mut m: MatchSummary = serde_json::from_str(&data)?;
             m.lp_change = lp_change;
+            m.has_review = has_review;
             out.push(m);
         }
         Ok(out)
     }
+
+    /// Saves (or replaces) the post-game review for a game.
+    pub fn save_review(&self, puuid: &str, review: &ReviewView) -> Result<(), DbError> {
+        let mut stored = review.clone();
+        stored.lp_change = None; // joined from lp_changes on read
+        self.conn.lock().unwrap().execute(
+            "INSERT OR REPLACE INTO reviews (puuid, game_id, created_ms, data) VALUES (?1, ?2, ?3, ?4)",
+            params![puuid, review.game_id as i64, review.created_ms as i64, serde_json::to_string(&stored)?],
+        )?;
+        Ok(())
+    }
+
+    /// A game's review (`game_id`), or the newest one, with its LP change when known.
+    pub fn review(&self, puuid: &str, game_id: Option<u64>) -> Result<Option<ReviewView>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let sql = "SELECT r.data, l.delta, l.tier_before, l.division_before, l.tier_after, l.division_after, l.lp_after
+                   FROM reviews r LEFT JOIN lp_changes l ON l.puuid = r.puuid AND l.game_id = r.game_id
+                   WHERE r.puuid = ?1 AND (?2 IS NULL OR r.game_id = ?2)
+                   ORDER BY r.created_ms DESC LIMIT 1";
+        let row = conn
+            .query_row(sql, params![puuid, game_id.map(|g| g as i64)], |r| Ok((r.get::<_, String>(0)?, lp_from(r, 1)?)))
+            .optional()?;
+        let Some((data, lp)) = row else { return Ok(None) };
+        let mut review: ReviewView = serde_json::from_str(&data)?;
+        review.lp_change = lp;
+        Ok(Some(review))
+    }
+}
+
+/// An LP change from the 6 lp_changes columns starting at `at` (all NULL when there's none).
+fn lp_from(r: &rusqlite::Row<'_>, at: usize) -> rusqlite::Result<Option<LpChange>> {
+    Ok(match r.get::<_, Option<i32>>(at)? {
+        Some(delta) => Some(LpChange {
+            delta,
+            tier_before: r.get(at + 1)?,
+            division_before: r.get(at + 2)?,
+            tier_after: r.get(at + 3)?,
+            division_after: r.get(at + 4)?,
+            lp_after: r.get(at + 5)?,
+        }),
+        None => None,
+    })
 }
 
 #[cfg(test)]
@@ -248,6 +295,7 @@ mod tests {
             items: vec![None; 6],
             spells: vec![],
             lp_change: None,
+            has_review: false,
         }
     }
 
@@ -291,6 +339,57 @@ mod tests {
         // A refetch of the same game keeps its LP change.
         db.upsert_games("me", &[summary(1, 10 * MIN, 420, MatchResult::Win)]).unwrap();
         assert_eq!(db.games("me", 10).unwrap()[0].lp_change.as_ref().unwrap().delta, 21);
+    }
+
+    fn review(game_id: u64, created_ms: u64) -> ReviewView {
+        ReviewView {
+            game_id,
+            created_ms,
+            champion: Icon { id: 233, name: "Briar".into(), icon: String::new() },
+            result: Some(MatchResult::Win),
+            kills: 6,
+            deaths: 2,
+            assists: 5,
+            cs: 180,
+            duration_secs: 1800,
+            deaths_by: vec![],
+            timeline: vec![],
+            counters: vec![],
+            lp_change: None,
+        }
+    }
+
+    #[test]
+    fn reviews_are_saved_linked_and_carry_lp() {
+        let db = Db::open_in_memory().unwrap();
+        db.record_snapshot("me", lp::SOLO, 5 * MIN, &rank(20, 3, 5)).unwrap();
+        db.upsert_games("me", &[summary(1, 10 * MIN, 420, MatchResult::Win), summary(2, 100 * MIN, 400, MatchResult::Loss)]).unwrap();
+        db.record_snapshot("me", lp::SOLO, 45 * MIN, &rank(41, 4, 5)).unwrap();
+        db.credit_lp("me").unwrap();
+        assert!(db.review("me", None).unwrap().is_none());
+        db.save_review("me", &review(1, 41 * MIN)).unwrap();
+        let r = db.review("me", Some(1)).unwrap().unwrap();
+        assert_eq!((r.kills, r.lp_change.as_ref().unwrap().delta), (6, 21));
+        assert!(db.review("me", Some(2)).unwrap().is_none());
+        assert!(db.review("other", None).unwrap().is_none(), "accounts stay separate");
+        let games = db.games("me", 10).unwrap();
+        assert_eq!(games.iter().map(|g| (g.game_id, g.has_review)).collect::<Vec<_>>(), vec![(2, false), (1, true)]);
+        db.save_review("me", &review(2, 120 * MIN)).unwrap();
+        assert_eq!(db.review("me", None).unwrap().unwrap().game_id, 2, "newest review");
+    }
+
+    #[test]
+    fn upgrades_a_version_1_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pix.db");
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(SCHEMA_V1).unwrap();
+            conn.pragma_update(None, "user_version", 1).unwrap();
+        }
+        let db = Db::open(&path).unwrap();
+        db.save_review("me", &review(1, 1)).unwrap();
+        assert!(db.review("me", Some(1)).unwrap().is_some());
     }
 
     #[test]

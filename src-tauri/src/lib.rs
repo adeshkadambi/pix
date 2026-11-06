@@ -94,6 +94,12 @@ async fn set_cosmic(app: AppHandle, champion: String, on: bool) -> Result<(), St
     live::poller::set_cosmic(&app, &champion, on).await
 }
 
+/// A saved post-game review (`game_id`), or the latest one.
+#[tauri::command]
+fn get_review(app: AppHandle, game_id: Option<u64>) -> Option<game::review::ReviewView> {
+    live::postgame::get(&app, game_id)
+}
+
 #[tauri::command]
 fn get_overlay_mode(app: AppHandle) -> overlay::OverlayMode {
     overlay::mode(&app)
@@ -181,6 +187,7 @@ pub fn run() {
             choose_build,
             get_live,
             toggle_timer,
+            get_review,
             set_cosmic,
             get_overlay_mode,
             start_calibration,

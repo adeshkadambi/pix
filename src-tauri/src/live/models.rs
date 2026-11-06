@@ -112,6 +112,9 @@ pub struct Event {
     pub victim: String,
     #[serde(rename = "Assisters")]
     pub assisters: Vec<String>,
+    /// "Win" or "Lose" on the `GameEnd` event.
+    #[serde(rename = "Result")]
+    pub result: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

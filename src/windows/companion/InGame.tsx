@@ -6,6 +6,7 @@ import type { LiveView } from "../../lib/types/LiveView";
 import type { StepState } from "../../lib/types/StepState";
 import { Placeholder } from "./Placeholder";
 import "./live.css";
+import "./review.css";
 
 const STEP_LABEL: Record<StepState, string> = { Owned: "Owned", Next: "Next", Later: "Later" };
 
@@ -66,6 +67,42 @@ function LiveScreen(props: { view: LiveView }) {
           use <strong>Position the tab panel</strong> while the game is running. If you can't see it, switch League to
           Borderless.
         </div>
+      </Show>
+
+      <Show when={v().advice}>
+        {(a) => (
+          <section class="card stack-12 advice" aria-label="Next buy">
+            <span class="eyebrow eyebrow--accent">Next buy · from OP.GG stats for this game</span>
+            <Show when={a().picks.length > 0} fallback={<p class="muted small-13">No enemy is a clear threat yet.</p>}>
+              <For each={a().picks}>
+                {(p, i) => (
+                  <div class="why-row">
+                    <AssetIcon path={p.item.icon} name={p.item.name} class={i() === 0 ? "item-tile" : "item-tile item-tile--small"} decorative />
+                    <span class="why-text">
+                      <span>
+                        <strong>{p.item.name}</strong> <span class="muted">· {p.reason}</span>
+                      </span>
+                      <span class="muted small">
+                        {((p.win / Math.max(1, p.play)) * 100).toFixed(1)}% · {p.play.toLocaleString()} games
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </For>
+            </Show>
+            <Show when={a().log.length > 0}>
+              <h3 class="panel-title">Why it changed</h3>
+              <For each={a().log}>
+                {(l) => (
+                  <div class="advice-log">
+                    <span class="advice-time">{clock(l.game_time)}</span>
+                    <span class="muted">{l.text}</span>
+                  </div>
+                )}
+              </For>
+            </Show>
+          </section>
+        )}
       </Show>
 
       <div class="live-cols">

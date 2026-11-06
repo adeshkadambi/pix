@@ -41,7 +41,7 @@ Sources: developer.riotgames.com/docs/lol (Game Integrity, Game Policy), develop
 | Own profile / match history view ("Showing (self) player stats" is explicitly approved) | Compliant | On |
 | Comp-aware champ-select builds, threat card, pre-game build in-game, enemy purchase feed (companion), post-game review | Compliant | On |
 | Summoner timers (overlay), gold diff (overlay) | Not named in policy | **On** (author's decision, M4; was "off until Riot approves") |
-| Live item advisor (companion) | **Off-policy** ("drawing conclusions for you during gameplay"). The author accepted the risk | **Off**, labeled "Not Riot-compliant, use at own risk" |
+| Live item advisor (companion) | **Off-policy** ("drawing conclusions for you during gameplay"). The author accepted the risk; it aggregates OP.GG matchup stats, much like build-order overlays | **Off**, with a calm note: "Off by default, since Riot's policy is stricter about in-game suggestions." |
 
 Registration: other people use Pix, so it is a product, not a personal tool. The author registers it on the Riot Developer Portal, discloses that it uses the League client API and the Live Client API, and describes the overlay features (summoner timers, gold diff), which ship on by default by the author's choice. Riot personal API keys only cover their owner, so any future Riot web API use for friends (such as filling in older matches) needs a registered product key kept on a server, never inside the app.
 
@@ -225,7 +225,11 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
   4. Candidates are the matching defensive tags ∩ `BuildSet.item_pool`, minus items I already own, ranked by `smoothed_wr`.
   5. Show 2–3 options with a reason (e.g. "Zed 6/0, killed you 3× → Zhonya's (52%, 290 games)"). It only advises, never acts.
   - All of it is pure functions in `advisor.rs`/`threats.rs`, tested with recorded `eventdata` fixtures.
-- **Post-game review (compliant):** deaths grouped by killer, a timeline, and for the top killers the best counter items from OP.GG matchup data (`my champ vs killer`).
+- **Post-game review (compliant):** deaths grouped by killer (with assisters), a death timeline, and for the top 2 killers the best counter items from OP.GG matchup data (`my champ vs killer`, else your champion's overall build), filtered to answers for that champion. It also shows the result, K/D/A, CS, length and the game's LP change when known.
+  - **Data:** kills are recorded live and turned into champions immediately; Riot IDs are never stored. The result comes from the Live Client `GameEnd` event, and the game id from the gameflow session at game start. No end-of-game endpoint is needed (it clears quickly).
+  - **Storage:** saved to the game log (`reviews` table, 5.12). Match history rows with a review link to it, and the Review tab shows the latest.
+  - Counters are Summoner's Rift only (rule 6).
+- **Live advisor display:** a "Next buy" card on the Live screen with 2–3 picks (win rate, games, reason) and a short "why it changed" log kept when the top pick changes.
 
 ### 5.10 Profile view (default companion screen)
 A native screen (`design/Main.dc.html`), built only from your own account's League client data.
@@ -245,6 +249,7 @@ Riot's APIs have no LP-per-game data, and the client's history is short. Pix run
   - `games(puuid, game_id, created_ms, queue_id, duration_secs, data JSON)`: one row per game seen in client history, upserted on every fetch.
   - `ranked_snapshots(puuid, queue_type, taken_ms, tier, division, lp, wins, losses)`: written when the rank state differs from the latest stored snapshot.
   - `lp_changes(puuid, game_id, queue_type, delta, tier/division/lp before and after)`.
+  - `reviews(puuid, game_id, created_ms, data JSON)`: post-game reviews (5.9), added in schema version 2.
 - **When snapshots are taken:** on every profile fetch (on connect, after each game, on Refresh) and when champ select starts.
 - **Crediting an LP change to a game** (ranked solo = queue 420 → `RANKED_SOLO_5x5`, flex = 440 → `RANKED_FLEX_SR`):
   - *before* = the latest snapshot taken before the game started.
@@ -309,7 +314,7 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
   - The tab watch runs only during a game with `overlay_timers` on, and is ignored while calibrating.
   - Debug-only `PIX_LIVE_FIXTURE=<allgamedata.json>` replays a game snapshot.
 - **M4 Overlay features (on by default):** gold diff, summoner timers with haste and the Cosmic Insight checkbox.
-- **M5 Live advisor (off-policy, off by default) and post-game review.**
+- **M5 Live advisor (off-policy, off by default) and post-game review**, with reviews saved per game.
 - **M6 Compliance close-out:** Riot Developer Portal registration and disclosures, including the overlay features that ship on by default.
 
 ## 9. Verification
