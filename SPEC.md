@@ -4,7 +4,7 @@
 
 ## 1. Context and goals
 Pix is a **personal, Windows-only** League of Legends companion and overlay built with **Tauri v2 + Rust**. It gives one player (the author) what u.gg doesn't:
-- **Default (idle) view:** the logged-in account's own **OP.GG profile and match history**, loaded in an embedded browser view.
+- **Default (idle) view:** the logged-in account's own **profile, ranked stats and match history**, shown natively from League client data.
 - **Champion select:** builds ranked by win rate **against the enemy team comp**.
 - **In-game overlay:** **gold diff** and **summoner spell timers** (clickable while TAB is held).
 - **In-game companion window (second monitor):** the pre-game build, a threat card, an enemy purchase feed, and an optional **live item advisor**.
@@ -12,7 +12,7 @@ Pix is a **personal, Windows-only** League of Legends companion and overlay buil
 
 Non-goals: public distribution, macOS/Linux builds, automating anything.
 
-Environment: development starts on macOS (Rust 1.99, Node 22) in `/Users/adeshkadambi/Documents/GitHub/pix` (empty). The code is pushed to a private GitHub repo and run and tested on the author's Windows PC. Windows CI builds an `.exe`.
+Environment: development, running and testing happen on the author's Windows PC (Rust 1.99, Node 26) in `C:\Users\adesh\Documents\pix`. The code is pushed to the GitHub repo `adeshkadambi/pix`. Windows CI builds an `.exe`.
 
 Performance target: idle RAM under 80 MB, CPU under 1% in-game. One Rust process (tokio) plus WebView2 windows. No Electron, no Overwolf, no headless browsers.
 
@@ -51,7 +51,7 @@ CI guard: the build fails if the source contains `OpenProcess|ReadProcessMemory|
 ## 4. Windows and layout
 | Window | Where | Behavior | Contents |
 |---|---|---|---|
-| `companion` | Normal window, usually on the second monitor | Decorated, resizable, one window used across all phases | Idle (no game) → **own OP.GG profile** (default). Draft → builds. In-game → pre-game build, threat card, purchase feed, live advisor (flag). Post-game → review. Settings, About |
+| `companion` | Normal window, usually on the second monitor | Decorated, resizable, one window used across all phases | Idle (no game) → **own profile and match history** (default). Draft → builds. In-game → pre-game build, threat card, purchase feed, live advisor (flag). Post-game → review. Settings, About |
 | `hud` | Over the game, full monitor | Transparent, undecorated, topmost, skip taskbar, **always click-through** (`set_ignore_cursor_events(true)`), non-activating | Gold diff strip; running summoner timer countdowns (display only) |
 | `tabpanel` | Over the game, small, next to the scoreboard's enemy rows | Transparent, undecorated, topmost, non-activating, hidden by default | Enemy summoner spell buttons; shown and clickable **only while TAB is held** and League is in front |
 
@@ -84,7 +84,7 @@ src-tauri/src/
   game/gold.rs, haste.rs, spells.rs, purchases.rs, threats.rs, advisor.rs, postgame.rs
   overlay/win32.rs, tab_watch.rs, foreground.rs
   asset_protocol.rs
-  profile.rs        own Riot ID + region → OP.GG URL; profile webview lifecycle + navigation guard
+  profile.rs        own summoner, ranked stats, match history → ProfileView
 ```
 
 ### 5.1 Finding the League client and connecting
@@ -139,7 +139,7 @@ pub struct BuildSet {
 pub struct Ranked<T> { pub value: T, pub play: u32, pub win: u32, pub smoothed_wr: f32 }
 pub struct RunePage { pub primary_style: u32, pub sub_style: u32, pub perks: Vec<u32>, pub shards: [u32; 3] }
 ```
-The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent locked), otherwise the base set. Situational picks come from the comp profile (5.5). A later Riot API provider implements the same trait and can use all of `DraftContext.enemies`.
+The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent locked), otherwise the base set. The Draft view shows the top build plus 2 alternatives, each with smoothed win rate and game count (rule 7). Its only actions are read-only: copy the build to the clipboard, or open it on op.gg in the system browser. Nothing is sent to the client (rule 2). Situational picks come from the comp profile (5.5). A later Riot API provider implements the same trait and can use all of `DraftContext.enemies`.
 
 ### 5.4 OP.GG provider (current data source)
 - **Endpoint:** `https://mcp-api.op.gg/mcp` (MCP over Streamable HTTP, JSON-RPC 2.0). The session is `initialize` → `notifications/initialized` → `tools/call`. Send `Accept: application/json, text/event-stream`. The reply may come as SSE.
@@ -209,21 +209,15 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 - **Post-game review (compliant):** deaths grouped by killer, a timeline, and for the top killers the best counter items from OP.GG matchup data (`my champ vs killer`).
 
 ### 5.10 Profile view (default companion screen)
-- **Who:** GET `/lol-summoner/v1/current-summoner` → `gameName`, `tagLine` (your own account only). GET `/riotclient/region-locale` → `region`.
-- **URL:** `https://op.gg/lol/summoners/<opgg_region>/<urlencode(gameName)>-<urlencode(tagLine)>`.
-  - The region map (`NA→na, EUW→euw, EUNE→eune, KR→kr, JP→jp, BR→br, LA1→lan, LA2→las, OC1→oce, TR→tr, RU→ru, ME1→me, SG2→sg, TW2→tw, VN2→vn`) lives in `profile.rs`, is unit-tested and can be overridden in config.
-  - Confirm the URL format against the live site in M1.
-- **How it's embedded:**
-  - A **child webview** inside `companion`, below a thin Pix tab bar (Profile · Draft · In-game · Review), using Tauri v2 multi-webview (`unstable` feature).
-  - Fallback if that is unstable: a separate `profile` window shown in the same place.
-  - An iframe won't work; OP.GG blocks framing.
-- **Safety:** the profile webview loads a remote site, so it gets **no IPC capabilities** (it isn't in any capability file). An `on_navigation` guard keeps it on `op.gg`; any other link or new window opens in the system browser.
+A native screen (`design/Main.dc.html`), built only from your own account's League client data.
+- **Who:** GET `/lol-summoner/v1/current-summoner` → `gameName`, `tagLine`, `summonerLevel`, `profileIconId`. GET `/riotclient/region-locale` → `region`.
+- **Ranked:** GET `/lol-ranked/v1/current-ranked-stats` → Solo/Duo and Flex tier, division, LP, wins, losses.
+- **Match history:** GET `/lol-match-history/v1/products/lol/current-summoner/matches` → per game: champion, queue, result, K/D/A, CS, duration, items, summoner spells. Ranked champion stats (games, win rate, KDA) are computed from the same history.
+- **Labels:** the source is shown as "from League client".
 - **Phase behavior:**
-  - Profile is shown when the phase is `None`, `Lobby`, `Matchmaking` or `ReadyCheck`.
-  - At `ChampSelect`, `companion` switches to Draft and the **profile webview is destroyed** to free its memory, which matters for the in-game RAM budget.
-  - It's recreated when the user leaves the post-game review or the next lobby starts.
+  - The companion shows Profile when the phase is `None`, `Lobby`, `Matchmaking` or `ReadyCheck`, and switches tabs as the phase changes (Draft, Live, Review). A tab the user picks by hand stays until the phase changes again.
   - Before the client connects (no account yet), the profile shows a "Waiting for League client" placeholder.
-- **Later option:** a native match-history view built from LCU `/lol-match-history/v1/products/lol/current-summoner/matches` or OP.GG `lol_list_summoner_matches`, if the embedded page feels heavy.
+- **Later option:** embed the OP.GG profile page (child webview with no IPC capabilities, plus a navigation guard that keeps it on `op.gg`), or use OP.GG `lol_list_summoner_matches` for extra stats.
 
 ### 5.11 TAB watch and foreground
 - `tab_watch.rs` runs at about 60 Hz on a dedicated thread.
@@ -240,16 +234,22 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 
 ## 7. Frontend
 ```
-src/windows/companion/  Draft.tsx, InGame.tsx, PostGame.tsx, Settings.tsx (flags + risk labels), About.tsx (legal notice)
+src/windows/companion/  Companion.tsx (header, tabs Profile · Draft · Live · Review), Profile.tsx, Draft.tsx, InGame.tsx, PostGame.tsx, Settings.tsx (flags + risk labels), About.tsx (legal notice)
 src/windows/hud/        GoldStrip.tsx, TimerBadges.tsx
 src/windows/tabpanel/   EnemySpells.tsx, Calibrate.tsx
-src/lib/                ipc.ts, events.ts, assets.ts, types.ts (generated by ts-rs)
+src/lib/                ipc.ts, events.ts, assets.ts, types/ (generated by ts-rs on `cargo test`, committed)
+src/styles/             tokens.css (design tokens), base.css
 ```
-Every window subscribes to backend events. There's no polling in JavaScript.
+Every window subscribes to backend events. There's no polling in JavaScript. All three windows load one page and pick their view by window label. Fonts are bundled locally (no Google Fonts at runtime).
+
+**Design:** the screens and tokens come from the Claude Design export in `design/` (see `design/README.md`). Where a design conflicts with section 2, section 2 wins:
+- The Live screen leads with the threat card and purchase feed. The "Next buy" card shows only with the `live_advisor` flag on.
+- Overlay gold diff is per lane matchup (5.7).
+- Timer controls follow 5.8.
 
 ## 8. Milestones (each ends working and pushed)
 - **M0 Scaffold:** `git init`, Tauri v2 + Vite + SolidJS, three windows, config and flags, About page, `SPEC.md` (this file), Windows CI (`cargo test`, compliance grep, `tauri build` artifact). Create a private GitHub repo with `gh` (confirm with the author before pushing).
-- **M1 League client connection and assets:** discovery, lockfile, pinned TLS, GET client, WebSocket, gameflow, map gate, `lcu-asset`, Data Dragon cache. Companion shows connection status and phase. **Profile view** (child webview, navigation guard, phase-driven create/destroy).
+- **M1 League client connection and assets:** discovery, lockfile, pinned TLS, GET client, WebSocket, gameflow, map gate, `lcu-asset`, Data Dragon cache. Companion shows connection status and phase. **Profile view** (native: summoner, ranked stats, match history).
 - **M2 Comp-aware builds:** champ-select parsing, OP.GG MCP client and notation parser, role inference, ranking, comp profile, cache, Draft view.
 - **M3 In-game shell:** live poller, companion in-game view (pre-game build, threat card, purchase feed), `hud`/`tabpanel` window styles, TAB watch, calibration, fullscreen warning.
 - **M4 Overlay features (gray, off by default):** gold diff, summoner timers with haste and Cosmic toggle.
@@ -260,7 +260,7 @@ Every window subscribes to backend events. There's no polling in JavaScript.
 - **`cargo test`** (on Mac and in CI): notation parser (real captured samples), matchup JSON parsing (recorded fixture), smoothing, role inference, comp profile, lockfile parsing, discovery YAML, haste regex against a Data Dragon `item.json` fixture, cooldown formula, gold sum, purchase diff, threat scoring and advisor filtering, flags default to off, asset allowlist rejects non-asset paths.
 - **Mac UI development:** replay mode `PIX_REPLAY=fixtures/<session>` feeds recorded LCU frames and `allgamedata`/`eventdata`.
 - **Windows manual checklist:**
-  1. Client open → connected and phase shown. Profile loads your own OP.GG page; clicking a non-OP.GG link opens the system browser; entering champ select swaps to Draft and frees the profile webview (check Task Manager memory).
+  1. Client open → connected and phase shown. Profile shows your own ranked stats and match history; entering champ select switches to Draft.
   2. Draft lobby → builds on hover and lock, matchup update when the enemy laner locks, sensible enemy roles.
   3. Practice Tool in Borderless with flags on locally → TAB shows the panel, clicks work and the game keeps focus, releasing TAB hides it; timers follow game time through a pause; gold strip updates.
   4. Advisor flag on → suggestions change after deaths.
@@ -276,3 +276,4 @@ Every window subscribes to backend events. There's no polling in JavaScript.
 - **Windows and TLS:** the target is Windows only, with Borderless required. TLS is pinned to `riotgames.pem` rather than accepting any certificate. Process discovery is replaced with discovery from Riot's install-settings file.
 - **Layout:** the overlay only shows gold diff and timers. Purchase alerts moved to the companion feed. Click-through comes from TAB-gated panel visibility, not cursor hit-testing.
 - **Compliance:** the policy rules and feature classes in section 2 now apply.
+- **Profile (after the designs):** the embedded OP.GG webview became a native screen built from League client data. The designs' "Send runes to client" and "Save item set" buttons became read-only copy/open actions.

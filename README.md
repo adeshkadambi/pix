@@ -2,21 +2,52 @@
 
 Personal, Windows-only League of Legends companion and overlay (Tauri v2 + Rust).
 
-- Own OP.GG profile when idle
+- Own profile and match history when idle
 - Champion select builds ranked by win rate against the enemy team comp
 - In-game overlay: gold diff and summoner spell timers (clickable while holding TAB)
-- Second-screen companion: pre-game build, threat card, enemy purchases, post-game review
+- Second-screen companion: pre-game build, threat card, enemy purchase feed, post-game review
 
-**Status:** spec only. No app code yet. UI designs are in [design/](design/README.md), exported from Claude Design.
+**Status:** M0 scaffold. The app opens with the themed companion window, Settings (feature flags, all
+off by default) and About. Screens are placeholders until M1+. UI designs are in
+[design/](design/README.md), exported from Claude Design.
 
 See [SPEC.md](SPEC.md) for the full specification, compliance rules and milestones (M0–M6).
 
-## Continuing on another machine
+## Requirements (Windows)
+
+- Node.js LTS, Rust stable (MSVC), Visual Studio 2022 Build Tools with the C++ workload
+- WebView2 (built into Windows 11)
+
+```powershell
+winget install OpenJS.NodeJS.LTS Rustlang.Rustup
+winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+## Commands
 
 ```bash
-git clone https://github.com/adeshkadambi/pix.git
-cd pix
-claude   # then: "Read SPEC.md and start M0"
+npm install
+npm run tauri dev                              # run the app
+cargo test --manifest-path src-tauri/Cargo.toml  # Rust tests; also regenerates src/lib/types
+npm run compliance                             # banned-API and GET-only check (SPEC §2)
+npm run tauri build                            # release .exe and installer
+```
+
+CI (`.github/workflows/ci.yml`) runs the compliance check, the tests and a release build on
+Windows, and uploads the `.exe` as an artifact.
+
+## Layout
+
+```
+src/                 SolidJS frontend (one page; each window picks its view by label)
+  windows/companion  main window: header, tabs, Settings, About
+  windows/hud        click-through overlay (gold strip, timers)
+  windows/tabpanel   overlay shown while TAB is held
+  lib/               IPC and event helpers, generated types
+  styles/            design tokens
+src-tauri/src/       Rust backend: config + flags, events, overlay window styles
+design/              Claude Design mockups and tokens
+scripts/             compliance check
 ```
 
 ---

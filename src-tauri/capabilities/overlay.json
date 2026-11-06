@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "overlay",
+  "description": "Overlay windows: listen to backend events and call app commands only",
+  "windows": ["hud", "tabpanel"],
+  "permissions": ["core:event:default", "core:app:default"]
+}

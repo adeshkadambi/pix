@@ -1,0 +1,27 @@
+{
+  "name": "pix",
+  "version": "0.1.0",
+  "description": "Personal League of Legends companion and overlay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "tauri": "tauri",
+    "compliance": "bash scripts/compliance.sh"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5",
+    "@fontsource/space-grotesk": "^5",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "solid-js": "^1.9.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16",
+    "vite-plugin-solid": "^2.11.12"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Companion window: app commands, events, and opening links in the system browser",
+  "windows": ["companion"],
+  "permissions": ["core:default", "opener:default"]
+}

@@ -1,0 +1,4 @@
+# ts-rs writes generated TypeScript types here when `cargo test` runs.
+# Lives at the repo root so it applies whether cargo runs from here or from src-tauri.
+[env]
+TS_RS_EXPORT_DIR = { value = "src/lib/types", relative = true }

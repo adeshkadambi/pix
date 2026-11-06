@@ -1,0 +1,49 @@
+/* Design tokens from the Claude Design export. See design/README.md. */
+:root {
+  /* Surfaces, darkest to lightest */
+  --bg: #140d21;
+  --bg-header: #170f26;
+  --card: #1e1530;
+  --card-inner: #261a3b;
+  --raised: #2a1d42;
+  --tile: #31224c;
+
+  /* Borders */
+  --border: #2c2043;
+  --border-strong: #3a2b57;
+  --border-tile: #4a3768;
+  --border-tile-strong: #6a4a8c;
+
+  /* Text */
+  --text: #f3ecfc;
+  --text-2: #cdbfe6;
+  --text-muted: #b4a3d1;
+
+  /* Accents */
+  --accent: #ee7ac8;
+  --accent-light: #f7a8dc;
+  --on-accent: #1a0f24;
+  --violet: #a98bf5;
+
+  /* Win / positive, loss / negative */
+  --good: #a6d86e;
+  --good-text: #c4ea97;
+  --good-bg: #2e3d22;
+  --bad-text: #f7a8dc;
+  --bad-bg: #3d1f33;
+
+  /* Overlay panels over the game */
+  --overlay-panel: rgba(20, 13, 33, 0.94);
+  --overlay-border: #5b3a73;
+
+  /* Type */
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+
+  /* Radii */
+  --r-tile: 6px;
+  --r-control: 8px;
+  --r-small: 12px;
+  --r-card: 16px;
+  --r-pill: 999px;
+}

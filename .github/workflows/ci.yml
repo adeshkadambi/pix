@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compliance check
+        run: |
+          bash scripts/compliance.sh --self-test
+          bash scripts/compliance.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm packages
+        run: npm ci
+
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+      - name: Generated TypeScript types are committed
+        run: git diff --exit-code -- src/lib/types
+
+      - name: Build app
+        run: npm run tauri build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pix-windows
+          path: |
+            src-tauri/target/release/pix.exe
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
