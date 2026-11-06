@@ -202,8 +202,8 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 - **Item gold** = Σ Data Dragon `item[id].gold.total × count` per player. Components count at their own price, consumables are included, and trinkets count 0. Unspent gold isn't visible for other players.
 - **Rows pair by scoreboard position.** The Live Client lists each team in scoreboard order, so enemy row `i` compares with your team's row `i`: the two players side by side on the scoreboard. In ranked and draft games the scoreboard is sorted by role, so rows are lane matchups. Earlier versions inferred lanes from positions; that was replaced in M4.
 - **Display (compact, in the tab panel while Tab is held):**
-  - A thin "Team ±X.Xk" line: all your items minus all theirs.
-  - A tiny chip on each enemy row: "+850", "−1.2k" or "±0". Green when you're ahead, pink when behind, "–" if your team has no player in that row.
+  - A thin team line: "Team 41.2K vs. 39.9K (+1.3K)", meaning all your items vs. all theirs.
+  - On each enemy row: "8.8K vs. 7.8K (+1.0K)", meaning your player in that scoreboard row vs. the enemy, then the difference (green when you're ahead, pink when behind). It shows "–" if your team has no player in that row. Showing both totals lets you compare value across lanes.
   - Labeled as item gold, not total gold.
 
 ### 5.8 Summoner timers (overlay `tabpanel` + `hud`, gray flag `overlay_timers`)

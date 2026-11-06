@@ -94,8 +94,16 @@ pub struct LiveEnemy {
     /// You ticked Cosmic Insight for this enemy.
     pub cosmic: bool,
     pub haste: u32,
-    /// Item gold of your player in the same scoreboard row minus this enemy's (gold feature on).
-    pub lane_gold: Option<i32>,
+    /// Item gold of your player in the same scoreboard row and of this enemy (gold feature on).
+    pub row_gold: Option<RowGold>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export)]
+pub struct RowGold {
+    /// Your player in the same scoreboard row.
+    pub yours: u32,
+    pub theirs: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
@@ -267,7 +275,7 @@ pub fn build_view(
                 spells: spell_views(p, game.game_data.game_time, timers, catalog, dd),
                 cosmic: timers.cosmic(p.ddragon_id()),
                 haste: enemy_haste(p, timers, dd),
-                lane_gold: gold.as_ref().and_then(|g| g.rows.get(p.ddragon_id()).copied()),
+                row_gold: gold.as_ref().and_then(|g| g.rows.get(p.ddragon_id())).map(|&(yours, theirs)| RowGold { yours, theirs }),
             })
             .collect(),
         window_mode,
@@ -431,11 +439,11 @@ mod tests {
             d.items.insert(id, crate::ddragon::ItemInfo { name: String::new(), tags: vec![], description: String::new(), gold_total: gold, completed: true, on_rift: true });
         }
         let off = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures::default());
-        assert!(off.team_gold.is_none() && off.enemies.iter().all(|e| e.lane_gold.is_none()));
+        assert!(off.team_gold.is_none() && off.enemies.iter().all(|e| e.row_gold.is_none()));
         let on = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures { timers: true, gold: true });
         assert!(on.timers_enabled && on.team_gold.is_some());
         let viego = on.enemies.iter().find(|e| e.key == "Viego").unwrap();
-        assert_eq!(viego.lane_gold, Some(8608 - 3200), "Briar's items vs Viego's");
+        assert_eq!(viego.row_gold, Some(RowGold { yours: 8608, theirs: 3200 }), "Briar's items vs Viego's");
     }
 
     #[test]

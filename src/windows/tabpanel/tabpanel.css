@@ -1,4 +1,4 @@
-/* Compact enemy panel. Sized to fit the window in tauri.conf.json (168×234). */
+/* Compact enemy panel. Sized to fit the window in tauri.conf.json (250×234). */
 .tabpanel {
   display: inline-flex;
   flex-direction: column;
@@ -121,19 +121,27 @@
 .tp-team {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   height: 16px;
   padding: 0 2px;
-  font: 600 10px var(--font-body);
+  font: 600 9px var(--font-body);
   color: var(--text-muted);
-}
-.tp-team span:last-child {
-  font-family: var(--font-display);
 }
 .tp-gold {
-  width: 30px;
+  width: 112px;
   text-align: center;
-  font: 700 9px var(--font-display);
-  color: var(--text-muted);
+  font: 600 9px var(--font-display);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.tp-compare {
+  font: 600 9px var(--font-display);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.tp-compare .tp-up,
+.tp-compare .tp-down {
+  font-weight: 700;
 }
 .tp-up {
   color: var(--good-text);

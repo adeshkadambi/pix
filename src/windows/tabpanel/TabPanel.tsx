@@ -2,7 +2,7 @@ import { For, Show } from "solid-js";
 import { AssetIcon } from "../../components/AssetIcon";
 import { eventSignal } from "../../lib/events";
 import { finishCalibration, getLive, getOverlayMode, setCosmic, toggleTimer } from "../../lib/ipc";
-import { countdown, goldDiff } from "../../lib/timer";
+import { countdown, goldDiff, goldK } from "../../lib/timer";
 import type { LiveEnemy } from "../../lib/types/LiveEnemy";
 import type { SpellView } from "../../lib/types/SpellView";
 import "./tabpanel.css";
@@ -32,9 +32,9 @@ export function TabPanel() {
       </Show>
       <Show when={live()?.team_gold}>
         {(t) => (
-          <div class="tp-team" title="Item gold (full item prices), your team minus theirs">
+          <div class="tp-team" title="Item gold (full item prices): your team vs. theirs">
             <span>Team</span>
-            <span class={t().ally - t().enemy >= 0 ? "tp-up" : "tp-down"}>{goldDiff(t().ally - t().enemy)}</span>
+            <GoldCompare yours={t().ally} theirs={t().enemy} />
           </div>
         )}
       </Show>
@@ -61,6 +61,17 @@ export function TabPanel() {
   );
 }
 
+/** "8.8K vs. 7.8K (+1.0K)": yours, theirs, and the difference (green ahead, pink behind). */
+function GoldCompare(props: { yours: number; theirs: number }) {
+  const diff = () => props.yours - props.theirs;
+  return (
+    <span class="tp-compare">
+      {goldK(props.yours)} vs. {goldK(props.theirs)} (
+      <span class={diff() >= 0 ? "tp-up" : "tp-down"}>{goldDiff(diff())}</span>)
+    </span>
+  );
+}
+
 function EnemyRow(props: { enemy: LiveEnemy; timers: boolean; gold: boolean }) {
   const e = () => props.enemy;
   return (
@@ -68,10 +79,12 @@ function EnemyRow(props: { enemy: LiveEnemy; timers: boolean; gold: boolean }) {
       <AssetIcon path={e().champion.icon} name={e().champion.name} class="tp-champ" decorative />
       <Show when={props.gold}>
         <span
-          class={`tp-gold ${e().lane_gold == null ? "" : e().lane_gold! >= 0 ? "tp-up" : "tp-down"}`}
-          title={e().lane_gold == null ? "No player in this scoreboard row on your team" : `Item gold: your player in this scoreboard row vs ${e().champion.name}`}
+          class="tp-gold"
+          title={e().row_gold == null ? "No player in this scoreboard row on your team" : `Item gold: your player in this scoreboard row vs. ${e().champion.name}`}
         >
-          {e().lane_gold == null ? "–" : goldDiff(e().lane_gold!)}
+          <Show when={e().row_gold} fallback="–">
+            {(g) => <GoldCompare yours={g().yours} theirs={g().theirs} />}
+          </Show>
         </span>
       </Show>
       <Show when={props.timers}>

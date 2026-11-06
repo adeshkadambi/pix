@@ -20,9 +20,9 @@ pub fn item_gold(items: &[Item], dd: &DData) -> u32 {
 pub struct GoldSummary {
     pub ally_total: u32,
     pub enemy_total: u32,
-    /// Enemy champion (Data Dragon id) → item gold of your player in the same scoreboard row
-    /// minus theirs. Missing when your team has no player in that row.
-    pub rows: HashMap<String, i32>,
+    /// Enemy champion (Data Dragon id) → (item gold of your player in the same scoreboard row,
+    /// the enemy's item gold). Missing when your team has no player in that row.
+    pub rows: HashMap<String, (u32, u32)>,
 }
 
 pub fn summarize(game: &AllGameData, dd: &DData) -> GoldSummary {
@@ -34,7 +34,7 @@ pub fn summarize(game: &AllGameData, dd: &DData) -> GoldSummary {
         rows: enemies
             .iter()
             .enumerate()
-            .filter_map(|(i, (champ, eg))| Some((champ.to_string(), *allies.get(i)? as i32 - *eg as i32)))
+            .filter_map(|(i, (champ, eg))| Some((champ.to_string(), (*allies.get(i)?, *eg))))
             .collect(),
     }
 }
@@ -70,11 +70,11 @@ mod tests {
     fn rows_pair_by_scoreboard_order_and_totals_add_up() {
         let s = summarize(&game(), &dd());
         // Row 1: Aatrox (Eclipse 2800 + Steelcaps 1200) vs Malphite (Thornmail 2450 + Steelcaps 1200).
-        assert_eq!(s.rows["Malphite"], 4000 - 3650);
+        assert_eq!(s.rows["Malphite"], (4000, 3650));
         // Row 2: Briar 8608 vs Viego 3200.
-        assert_eq!(s.rows["Viego"], 8608 - 3200);
+        assert_eq!(s.rows["Viego"], (8608, 3200));
         // Row 5: Thresh has no items vs Leona's Locket.
-        assert_eq!(s.rows["Leona"], -2200);
+        assert_eq!(s.rows["Leona"], (0, 2200));
         assert_eq!(s.ally_total, 4000 + 8608 + 2900 + 3450);
         assert_eq!(s.enemy_total, 3650 + 3200 + 2900 + 3000 + 2200);
     }
@@ -85,7 +85,7 @@ mod tests {
         for p in &mut g.all_players {
             p.position = "NONE".into();
         }
-        assert_eq!(summarize(&g, &dd()).rows["Viego"], 8608 - 3200);
+        assert_eq!(summarize(&g, &dd()).rows["Viego"], (8608, 3200));
     }
 
     #[test]
