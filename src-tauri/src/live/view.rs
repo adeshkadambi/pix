@@ -64,7 +64,8 @@ pub struct LiveBuild {
 pub struct PurchaseView {
     pub game_time: f64,
     pub champion: Icon,
-    pub item: Icon,
+    /// Everything bought on that trip.
+    pub items: Vec<Icon>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
@@ -290,7 +291,7 @@ pub fn build_view(
                     name: p.champion.clone(),
                     icon: String::new(),
                 }),
-                item: catalog.item_icon(p.item_id as i32),
+                items: p.item_ids.iter().map(|id| catalog.item_icon(*id as i32)).collect(),
             })
             .collect(),
         enemies: game

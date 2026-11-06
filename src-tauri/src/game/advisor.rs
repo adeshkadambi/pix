@@ -14,6 +14,16 @@ use crate::ddragon::DData;
 
 pub const MAX_PICKS: usize = 3;
 const TOP_THREATS: usize = 2;
+/// Answers taken per trait before moving on, so there are always several options.
+const PER_TRAIT: usize = 2;
+/// An enemy is only a threat once it has done something: takedowns, a kill on you, or a real
+/// item-gold lead. Stops early-game noise like a support's starting item.
+const MIN_TAKEDOWNS: u32 = 2;
+const MIN_GOLD_LEAD: u32 = 1000;
+
+fn is_threat(e: &EnemyState, my_gold: u32) -> bool {
+    e.kills + e.assists >= MIN_TAKEDOWNS || e.kills_on_me >= 1 || e.item_gold.saturating_sub(my_gold) >= MIN_GOLD_LEAD
+}
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EnemyState {
@@ -57,7 +67,7 @@ pub fn threats(enemies: &[EnemyState], my_gold: u32) -> Vec<Threat> {
             }
             Threat { index: i, score: 0.5 * lead[i] + 0.3 * ka[i] + 0.2 * kom[i], reason }
         })
-        .filter(|t| t.score > 0.0)
+        .filter(|t| t.score > 0.0 && is_threat(&enemies[t.index], my_gold))
         .collect();
     out.sort_by(|a, b| b.score.total_cmp(&a.score));
     out
@@ -80,16 +90,22 @@ pub fn advise(build: &BuildSet, enemies: &[EnemyState], my_gold: u32, owned: &[u
     let mut picks: Vec<Pick> = Vec::new();
     for threat in threats(enemies, my_gold).into_iter().take(TOP_THREATS) {
         for t in traits_of(&enemies[threat.index], dd) {
-            for r in build.item_pool.iter().filter(|r| {
-                !owned.contains(&r.value)
-                    && !picks.iter().any(|p| p.item_id == r.value)
-                    && dd.items.get(&r.value).is_some_and(|it| eligible(it) && answers(it, t, build.damage_type))
-            }) {
-                picks.push(Pick { item_id: r.value, reason: threat.reason.clone(), ranked: r.clone() });
+            let answers: Vec<_> = build
+                .item_pool
+                .iter()
+                .filter(|r| {
+                    !owned.contains(&r.value)
+                        && !picks.iter().any(|p| p.item_id == r.value)
+                        && dd.items.get(&r.value).is_some_and(|it| eligible(it) && answers(it, t, build.damage_type))
+                })
+                .take(PER_TRAIT)
+                .cloned()
+                .collect();
+            for r in answers {
+                picks.push(Pick { item_id: r.value, reason: threat.reason.clone(), ranked: r });
                 if picks.len() >= MAX_PICKS {
                     return picks;
                 }
-                break; // best answer per trait, then the next trait or threat
             }
         }
     }
@@ -142,7 +158,7 @@ mod tests {
         // Zed: lead 1, takedowns 8/10, kills on me 1 → 0.5 + 0.24 + 0.2.
         assert!((t[0].score - 0.94).abs() < 1e-4);
         assert_eq!(t[1].reason, "Leona 1/4/9", "no 'killed you' when it didn't happen");
-        assert_eq!(t.len(), 3);
+        assert_eq!(t.len(), 2, "Malphite (1 takedown, no lead, never killed you) isn't a threat yet");
     }
 
     #[test]
@@ -172,7 +188,21 @@ mod tests {
         let d = dd();
         let es = vec![enemy("Viego", &[3153], 9000, 7, 1, 1, 2)];
         let ids: Vec<u32> = advise(&build(), &es, 5000, &[], &d).iter().map(|p| p.item_id).collect();
-        assert_eq!(ids, vec![3033, 3157], "Mortal Reminder for the healing, then the best-ranked armor item (Zhonya's)");
+        assert_eq!(ids, vec![3033, 3157, 3026], "Mortal Reminder for the healing, then the two best armor items");
+    }
+
+    #[test]
+    fn no_advice_at_game_start() {
+        // A support's 400-gold starting item against your empty inventory isn't a threat.
+        let janna = enemy("Janna", &[3865], 400, 0, 0, 0, 0);
+        assert!(threats(&[janna.clone()], 0).is_empty());
+        assert!(advise(&build(), &[janna], 0, &[], &dd()).is_empty());
+    }
+
+    #[test]
+    fn a_big_gold_lead_alone_makes_a_threat() {
+        let fed = enemy("Kaisa", &[3142], 7500, 1, 0, 0, 0);
+        assert_eq!(threats(&[fed], 6000).len(), 1);
     }
 
     #[test]

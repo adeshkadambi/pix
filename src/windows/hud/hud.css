@@ -15,9 +15,15 @@
   white-space: nowrap;
 }
 
-/* Running summoner timers. Anchored by the top-right corner (right/top set inline). */
-.hud-timers {
+/* Top-right column: timers, then item popups. Anchored by its top-right corner (inline). */
+.hud-column {
   position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.hud-timers {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -59,4 +65,43 @@
 .hud-sample {
   display: inline-block;
   background: var(--raised);
+}
+
+/* Enemy item completion popup */
+.hud-popup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 340px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background: var(--overlay-panel);
+  border: 1px solid var(--accent);
+  animation: hud-pop 0.2s ease-out;
+}
+.hud-popup-text {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.hud-popup-text strong {
+  color: var(--text);
+}
+.hud-popup-items {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--accent-light);
+  font-weight: 600;
+}
+.hud-item {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 7px;
+}
+@keyframes hud-pop {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
 }

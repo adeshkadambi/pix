@@ -30,6 +30,8 @@ pub struct LiveRuntime {
     /// How the advisor's top pick changed, newest first.
     advice_log: Vec<view::AdviceLog>,
     last_top_pick: Option<i32>,
+    /// Checked once per game that there's build data for the champion being played.
+    build_checked: bool,
     pub window_mode: Option<WindowMode>,
     feed: PurchaseFeed,
     timers: TimerBook,
@@ -108,7 +110,43 @@ async fn tick(app: &AppHandle, game: AllGameData, first: bool) -> bool {
     if first {
         overlay::game_started(app);
     }
+    ensure_build(app);
     redraw(app).await
+}
+
+/// Once per game: if champ select left no build for the champion being played (Pix opened
+/// mid-game or restarted), load the standard one so the Live screen and advisor still work.
+fn ensure_build(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let (champion, position) = {
+        let mut rt = state.live.lock().unwrap();
+        if rt.build_checked {
+            return;
+        }
+        let Some(game) = rt.last_game.as_ref().filter(|g| g.is_summoners_rift()) else { return };
+        let Some(me) = game.me() else { return };
+        let out = (me.ddragon_id().to_owned(), me.position.clone());
+        rt.build_checked = true;
+        out
+    };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
+        let (Some(dd), Some(http)) = (state.ddragon(), state.lcu_http()) else { return };
+        let Ok(catalog) = profile::catalog(&app, &http).await else { return };
+        let draft_role = state.draft.lock().unwrap().view.as_ref().and_then(|d| d.my_role);
+        let role = match super::postgame::role_from_position(&position).or(draft_role) {
+            Some(r) => r,
+            None => {
+                // Custom and practice games report no position: use the champion's main role.
+                let patch = state.patch.lock().unwrap().clone().unwrap_or_default();
+                let traits = state.builds.traits(&patch, &champion.to_uppercase()).await.unwrap_or_default();
+                traits.role_rates.iter().max_by(|a, b| a.1.total_cmp(&b.1)).map(|r| r.0).unwrap_or(crate::builds::Role::Mid)
+            }
+        };
+        crate::builds::draft::ensure_game_build(&app, &champion, role, &catalog, &dd).await;
+        redraw(&app).await;
+    });
 }
 
 /// Rebuilds the view from the latest snapshot and emits it if it changed.

@@ -131,7 +131,7 @@ function LiveScreen(props: { view: LiveView }) {
                     </div>
                   )}
                 </For>
-                <p class="muted small">Your build from champ select. "Next" is the first item you don't own yet.</p>
+                <p class="muted small">Your build from champ select (or the standard one for your champion). "Next" is the first item you don't own yet.</p>
               </>
             )}
           </Show>
@@ -157,19 +157,21 @@ function LiveScreen(props: { view: LiveView }) {
             </section>
           </Show>
 
-          <section class="card stack-12" aria-label="Enemy purchases">
-            <h2 class="card-title">Enemy purchases</h2>
-            <Show when={v().purchases.length > 0} fallback={<p class="muted small-13">Finished items and boots enemies buy show up here.</p>}>
+          <section class="card stack-12" aria-label="Enemy item completions">
+            <h2 class="card-title">Enemy item completions</h2>
+            <Show when={v().purchases.length > 0} fallback={<p class="muted small-13">Finished items enemies complete show up here and briefly on your game screen.</p>}>
               <For each={v().purchases}>
                 {(p) => (
                   <div class="purchase">
                     <span class="purchase-time">{clock(p.game_time)}</span>
                     <AssetIcon path={p.champion.icon} name={p.champion.name} class="purchase-champ" decorative />
                     <span class="small-13">
-                      <span class="strong">{p.champion.name}</span> <span class="muted">bought</span>
+                      <span class="strong">{p.champion.name}</span> <span class="muted">completed</span>
                     </span>
-                    <AssetIcon path={p.item.icon} name={p.item.name} class="item-tile item-tile--small" decorative />
-                    <span class="small-13">{p.item.name}</span>
+                    <For each={p.items}>
+                      {(it) => <AssetIcon path={it.icon} name={it.name} class="item-tile item-tile--small" decorative />}
+                    </For>
+                    <span class="small-13 purchase-names">{p.items.map((it) => it.name).join(" · ")}</span>
                   </div>
                 )}
               </For>

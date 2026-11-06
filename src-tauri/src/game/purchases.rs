@@ -1,5 +1,7 @@
 //! Enemy purchase feed (SPEC §5.9): compare each enemy's item multiset between ticks and keep
-//! the last 10 notable purchases. Enemies are keyed by champion, never by player name.
+//! the last 10 **item completions**: finished legendary items only (no components, boots,
+//! starters, potions or wards). Completions by one champion close together are one line. Enemies
+//! are keyed by champion, never by player name.
 
 use std::collections::{HashMap, VecDeque};
 
@@ -7,13 +9,16 @@ use crate::ddragon::DData;
 use crate::live::models::{AllGameData, Item};
 
 pub const FEED_LEN: usize = 10;
+/// Buys by the same champion this close together (game seconds) are one shopping trip.
+pub const TRIP_WINDOW: f64 = 20.0;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Purchase {
+    /// When the trip's latest item was bought.
     pub game_time: f64,
     /// Data Dragon champion id of the buyer.
     pub champion: String,
-    pub item_id: u32,
+    pub item_ids: Vec<u32>,
 }
 
 #[derive(Debug, Default)]
@@ -41,11 +46,14 @@ pub fn added(before: &[Item], after: &[Item]) -> Vec<u32> {
     out
 }
 
-/// Worth a line in the feed: finished items and boots, not potions, wards, trinkets or components.
+/// Legendary items cost at least this much; starters, components and boots cost less.
+const MIN_COMPLETED_GOLD: u32 = 2000;
+
+/// Worth showing: a finished legendary item. Not components, boots, starters, potions or wards.
 pub fn notable(item_id: u32, dd: &DData) -> bool {
     dd.items.get(&item_id).is_some_and(|it| {
         let tag = |t: &str| it.tags.iter().any(|x| x == t);
-        !tag("Consumable") && !tag("Trinket") && (it.completed || tag("Boots")) && it.gold_total >= 300
+        it.completed && it.gold_total >= MIN_COMPLETED_GOLD && !tag("Boots") && !tag("Consumable") && !tag("Trinket")
     })
 }
 
@@ -57,8 +65,16 @@ impl PurchaseFeed {
         for enemy in game.enemies() {
             let key = enemy.ddragon_id().to_owned();
             if let Some(before) = self.last.get(&key) {
-                for item_id in added(before, &enemy.items).into_iter().filter(|id| notable(*id, dd)) {
-                    self.recent.push_front(Purchase { game_time: game.game_data.game_time, champion: key.clone(), item_id });
+                let bought: Vec<u32> = added(before, &enemy.items).into_iter().filter(|id| notable(*id, dd)).collect();
+                if !bought.is_empty() {
+                    let now = game.game_data.game_time;
+                    match self.recent.iter_mut().find(|p| p.champion == key && now - p.game_time <= TRIP_WINDOW) {
+                        Some(trip) => {
+                            trip.item_ids.extend(bought);
+                            trip.game_time = now;
+                        }
+                        None => self.recent.push_front(Purchase { game_time: now, champion: key.clone(), item_ids: bought }),
+                    }
                     changed = true;
                 }
             }
@@ -102,8 +118,9 @@ mod tests {
     #[test]
     fn notable_items_only() {
         let d = dd();
-        assert!(notable(3075, &d) && notable(3047, &d));
-        assert!(!notable(1029, &d) && !notable(2003, &d) && !notable(3340, &d) && !notable(9999, &d));
+        assert!(notable(3075, &d), "Thornmail is a finished legendary");
+        assert!(!notable(3047, &d) && !notable(1029, &d), "not boots or components");
+        assert!(!notable(2003, &d) && !notable(3340, &d) && !notable(9999, &d), "not potions, trinkets or unknown items");
     }
 
     fn snapshot(time: f64, malphite: Vec<Item>) -> AllGameData {
@@ -124,9 +141,25 @@ mod tests {
         let d = dd();
         let mut feed = PurchaseFeed::default();
         assert!(!feed.update(&snapshot(600.0, vec![item(3047, 1)]), &d), "first snapshot is a baseline");
-        assert!(!feed.update(&snapshot(601.0, vec![item(3047, 1), item(1029, 1), item(2003, 1)]), &d), "components and potions are skipped");
+        assert!(!feed.update(&snapshot(601.0, vec![item(3047, 1), item(1029, 1), item(2003, 1)]), &d), "components and potions aren't completions");
+        // Cloth Armor turns into Thornmail.
         assert!(feed.update(&snapshot(900.0, vec![item(3047, 1), item(3075, 1)]), &d));
-        assert_eq!(feed.recent.front(), Some(&Purchase { game_time: 900.0, champion: "Malphite".into(), item_id: 3075 }));
+        assert_eq!(feed.recent.front(), Some(&Purchase { game_time: 900.0, champion: "Malphite".into(), item_ids: vec![3075] }));
+        assert_eq!(feed.recent.len(), 1);
+    }
+
+    #[test]
+    fn buys_close_together_are_one_trip() {
+        let d = dd();
+        let mut feed = PurchaseFeed::default();
+        feed.update(&snapshot(300.0, vec![]), &d);
+        let mut d = d;
+        d.items.insert(3071, crate::ddragon::ItemInfo { name: String::new(), tags: vec![], description: String::new(), gold_total: 3000, completed: true, on_rift: true });
+        feed.update(&snapshot(301.0, vec![item(3075, 1)]), &d);
+        feed.update(&snapshot(305.0, vec![item(3075, 1), item(3071, 1)]), &d);
+        assert_eq!(feed.recent.len(), 1);
+        assert_eq!(feed.recent[0].item_ids, vec![3075, 3071]);
+        assert_eq!(feed.recent[0].game_time, 305.0);
     }
 
     #[test]
@@ -140,9 +173,9 @@ mod tests {
         let mut inv = Vec::new();
         for (n, id) in (4000..4012).enumerate() {
             inv.push(item(id, 1));
-            feed.update(&snapshot(n as f64, inv.clone()), &d);
+            feed.update(&snapshot(n as f64 * 60.0, inv.clone()), &d);
         }
         assert_eq!(feed.recent.len(), FEED_LEN);
-        assert_eq!(feed.recent.front().unwrap().item_id, 4011, "newest first");
+        assert_eq!(feed.recent.front().unwrap().item_ids, vec![4011], "newest first");
     }
 }

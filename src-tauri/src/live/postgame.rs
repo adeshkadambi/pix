@@ -27,7 +27,7 @@ fn actor_icon(a: &Actor, catalog: &Catalog, dd: &DData) -> Icon {
     }
 }
 
-fn role_from_position(position: &str) -> Option<Role> {
+pub(crate) fn role_from_position(position: &str) -> Option<Role> {
     Role::from_lcu(match position.to_ascii_uppercase().as_str() {
         "MIDDLE" => "middle",
         "BOTTOM" => "bottom",

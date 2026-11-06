@@ -489,15 +489,32 @@ async fn compute(app: &AppHandle, inputs: &Inputs, catalog: &Catalog, dd: &DData
     if is_matchup && let Some((_, champ, _)) = opponent && let Some(c) = dd.champions.get(champ) {
         opgg_url.push_str(&format!("?target_champion={}", c.id.to_lowercase()));
     }
-    let items = |ids: &[u32]| ids.iter().map(|id| catalog.item_icon(*id as i32)).collect::<Vec<_>>();
-
     if app.state::<AppState>().draft.lock().unwrap().generation == inputs.generation {
         app.state::<AppState>().draft.lock().unwrap().build_set = Some(build.clone());
     }
-    view.build = Some(BuildView {
-        champion: catalog.champion(me.champion_id),
+    let opponent_icon = if is_matchup { opponent.map(|(_, c, _)| catalog.champion(*c)) } else { None };
+    let situational = situational.iter().map(|p| situational_view(p, catalog)).collect();
+    view.build = Some(assemble(&build, catalog.champion(me.champion_id), role, opponent_icon, situational, threats, opgg_url, catalog));
+    with_status(view, DraftStatus::Ready, None)
+}
+
+/// A `BuildView` from build data: the top options per section.
+#[allow(clippy::too_many_arguments)]
+fn assemble(
+    build: &BuildSet,
+    champion: Icon,
+    role: Role,
+    opponent: Option<Icon>,
+    situational: Vec<SituationalView>,
+    threats: Vec<ThreatView>,
+    opgg_url: String,
+    catalog: &Catalog,
+) -> BuildView {
+    let items = |ids: &[u32]| ids.iter().map(|id| catalog.item_icon(*id as i32)).collect::<Vec<_>>();
+    BuildView {
+        champion,
         role,
-        opponent: if is_matchup { opponent.map(|(_, c, _)| catalog.champion(*c)) } else { None },
+        opponent,
         games: build.champion_games,
         win_rate: build.champion_wr,
         runes: build.rune_pages.iter().take(TOP_OPTIONS).map(|r| rune_view(r, catalog)).collect(),
@@ -507,11 +524,48 @@ async fn compute(app: &AppHandle, inputs: &Inputs, catalog: &Catalog, dd: &DData
         spells: build.summoners.iter().take(2).map(|r| opt(r, r.value.iter().map(|id| catalog.spell(*id as i32)).collect())).collect(),
         later: build.later_items.iter().filter(|s| !s.is_empty()).map(|s| s.iter().take(TOP_OPTIONS).map(|r| opt(r, items(&[r.value]))).collect()).collect(),
         skills: build.skill_orders.iter().take(2).map(|r| SkillOption { order: r.value.clone(), play: r.play, win: r.win, smoothed_wr: r.smoothed_wr }).collect(),
-        situational: situational.iter().map(|p| situational_view(p, catalog)).collect(),
+        situational,
         threats,
         opgg_url,
-    });
-    with_status(view, DraftStatus::Ready, None)
+    }
+}
+
+/// When a game runs without a champ select build (Pix opened mid-game, or restarted), fetch the
+/// standard build for the champion being played so the Live screen and advisor still work.
+pub async fn ensure_game_build(app: &AppHandle, champion_ddragon_id: &str, role: Role, catalog: &Catalog, dd: &DData) {
+    let state = app.state::<AppState>();
+    let Some(key) = dd.champion_key(champion_ddragon_id) else { return };
+    {
+        let rt = state.draft.lock().unwrap();
+        let have = rt.view.as_ref().and_then(|v| v.build.as_ref()).is_some_and(|b| b.champion.id == key);
+        if have && rt.build_set.is_some() {
+            return;
+        }
+    }
+    let patch = state.patch.lock().unwrap().clone().unwrap_or_default();
+    let build = match state.builds.base(&patch, &champion_ddragon_id.to_uppercase(), role).await {
+        Ok(b) => b,
+        Err(e) => return tracing::warn!("no build for {champion_ddragon_id} {}: {e}", role.opgg()),
+    };
+    let url = format!("https://op.gg/lol/champions/{}/build/{}", champion_ddragon_id.to_lowercase(), role.opgg());
+    let view = DraftView {
+        chosen: ChosenBuild::default(),
+        status: DraftStatus::Ready,
+        message: None,
+        my_role: Some(role),
+        role_from_client: false,
+        allies: Vec::new(),
+        enemies: Vec::new(),
+        ally_bans: Vec::new(),
+        enemy_bans: Vec::new(),
+        build: Some(assemble(&build, catalog.champion(key), role, None, Vec::new(), Vec::new(), url, catalog)),
+        suggestions: None,
+    };
+    let mut rt = state.draft.lock().unwrap();
+    rt.chosen = ChosenBuild::default();
+    rt.view = Some(view);
+    rt.build_set = Some(build);
+    tracing::info!("loaded a standard build for {champion_ddragon_id} ({}) for this game", role.opgg());
 }
 
 /// Letters and digits only, lowercased: matches OP.GG names ("Nunu & Willump") to Data Dragon's.

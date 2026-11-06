@@ -173,10 +173,8 @@ pub fn game_started(app: &AppHandle) {
         }
     }
     drop(rt);
-    if timers_on {
-        // Click-through HUD with running countdowns while the scoreboard key isn't held.
-        set_hud_visible(app, true);
-    }
+    // Click-through HUD for the whole game: running timers and enemy item completion popups.
+    set_hud_visible(app, true);
 }
 
 /// The game ended: stop watching keys and hide the overlays (unless calibrating).

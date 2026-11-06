@@ -136,6 +136,13 @@
 .threat-name {
   flex: 1;
 }
+.purchase {
+  flex-wrap: wrap;
+}
+.purchase-names {
+  flex: 1 1 140px;
+  min-width: 0;
+}
 .purchase-time {
   width: 40px;
   flex: none;
