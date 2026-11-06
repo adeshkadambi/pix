@@ -1,10 +1,11 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { createSignal, For, Match, Show, Switch } from "solid-js";
+import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { AssetIcon } from "../../components/AssetIcon";
 import { eventSignal } from "../../lib/events";
-import { getDraft, setEnemyRole, setMyRole } from "../../lib/ipc";
+import { chooseBuild, getDraft, setEnemyRole, setMyRole } from "../../lib/ipc";
 import type { AllyView } from "../../lib/types/AllyView";
 import type { BuildView } from "../../lib/types/BuildView";
+import type { ChosenBuild } from "../../lib/types/ChosenBuild";
 import type { DraftView } from "../../lib/types/DraftView";
 import type { EnemyView } from "../../lib/types/EnemyView";
 import type { Icon } from "../../lib/types/Icon";
@@ -144,7 +145,7 @@ function BuildPanel(props: { draft: DraftView }) {
   return (
     <section class="card build" aria-label="Builds">
       <Switch>
-        <Match when={d().status === "Ready" && d().build}>{(b) => <BuildDetails build={b()} />}</Match>
+        <Match when={d().status === "Ready" && d().build}>{(b) => <BuildDetails build={b()} chosen={d().chosen} />}</Match>
         <Match when={d().status === "Suggesting" && d().suggestions}>{(s) => <Suggestions view={s()} />}</Match>
         <Match when={d().status === "NeedRole"}>
           <div class="stack">
@@ -228,25 +229,27 @@ function SuggestionCard(props: { s: SuggestionView }) {
   );
 }
 
-function buildText(b: BuildView): string {
+function buildText(b: BuildView, chosen: ChosenBuild): string {
   const names = (icons: Icon[]) => icons.map((i) => i.name).join(" > ");
+  const runes = b.runes[chosen.runes] ?? b.runes[0];
+  const core = b.core[chosen.core] ?? b.core[0];
   const lines = [`${b.champion.name} ${ROLE_LABEL[b.role]}${b.opponent ? ` vs ${b.opponent.name}` : ""} (Pix, OP.GG data)`];
-  if (b.runes[0]) lines.push(`Runes: ${b.runes[0].perks.map((p) => p.name).join(", ")} | ${b.runes[0].shards.map((s) => s.name).join(", ")}`);
+  if (runes) lines.push(`Runes: ${runes.perks.map((p) => p.name).join(", ")} | ${runes.shards.map((s) => s.name).join(", ")}`);
   if (b.spells[0]) lines.push(`Spells: ${names(b.spells[0].icons)}`);
   if (b.starters[0]) lines.push(`Start: ${names(b.starters[0].icons)}`);
-  if (b.core[0]) lines.push(`Core: ${names(b.core[0].icons)}`);
+  if (core) lines.push(`Core: ${names(core.icons)}`);
   if (b.boots[0]) lines.push(`Boots: ${names(b.boots[0].icons)}`);
   b.later.forEach((slot, i) => slot[0] && lines.push(`${LATER_LABEL[i]}: ${slot.map((o) => o.icons[0].name).join(" / ")}`));
   if (b.skills[0]) lines.push(`Skills: ${b.skills[0].order.join(" > ")}`);
   return lines.join("\n");
 }
 
-function BuildDetails(props: { build: BuildView }) {
+function BuildDetails(props: { build: BuildView; chosen: ChosenBuild }) {
   const b = () => props.build;
   const [copied, setCopied] = createSignal(false);
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(buildText(b()));
+      await navigator.clipboard.writeText(buildText(b(), props.chosen));
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (e) {
@@ -280,11 +283,15 @@ function BuildDetails(props: { build: BuildView }) {
       <div class="build-grid">
         <div class="panel">
           <h3 class="panel-title">Runes</h3>
-          <For each={b().runes}>{(r, i) => <RuneOption page={r} primary={i() === 0} />}</For>
+          <For each={b().runes}>
+            {(r, i) => <RuneOption page={r} selected={i() === props.chosen.runes} onSelect={() => void chooseBuild("runes", i())} />}
+          </For>
         </div>
         <div class="panel">
           <h3 class="panel-title">Core items</h3>
-          <For each={b().core}>{(o) => <OptionRow option={o} arrows />}</For>
+          <For each={b().core}>
+            {(o, i) => <CoreOption option={o} selected={i() === props.chosen.core} onSelect={() => void chooseBuild("core", i())} />}
+          </For>
           <h3 class="panel-title">Boots</h3>
           <For each={b().boots}>{(o) => <OptionRow option={o} />}</For>
           <For each={b().later}>
@@ -360,12 +367,27 @@ function BuildDetails(props: { build: BuildView }) {
   );
 }
 
-function RuneOption(props: { page: RunePageView; primary: boolean }) {
+/** A clickable option: choosing it sets what the in-game Live screen follows. */
+function Selectable(props: { selected: boolean; onSelect: () => void; label: string; class: string; children: JSX.Element }) {
+  return (
+    <button
+      type="button"
+      class={`selectable ${props.class} ${props.selected ? "selectable--on" : ""}`}
+      aria-pressed={props.selected}
+      title={props.selected ? "Following this in game" : `Follow this ${props.label} in game`}
+      onClick={() => props.onSelect()}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+function RuneOption(props: { page: RunePageView; selected: boolean; onSelect: () => void }) {
   const p = () => props.page;
   return (
-    <div class={`rune-option ${props.primary ? "rune-option--top" : ""}`}>
+    <Selectable selected={props.selected} onSelect={props.onSelect} label="rune page" class="rune-option">
       <div class="rune-row">
-        <AssetIcon path={p().perks[0]?.icon} name={p().perks[0]?.name ?? "Keystone"} class={props.primary ? "keystone" : "keystone keystone--small"} />
+        <AssetIcon path={p().perks[0]?.icon} name={p().perks[0]?.name ?? "Keystone"} class={props.selected ? "keystone" : "keystone keystone--small"} />
         <div class="rune-minor">
           <For each={p().perks.slice(1)}>{(perk) => <AssetIcon path={perk.icon} name={perk.name} class="rune-icon" />}</For>
           <span class="rune-sep" aria-hidden="true" />
@@ -374,14 +396,36 @@ function RuneOption(props: { page: RunePageView; primary: boolean }) {
       </div>
       <span class="muted small">
         {p().perks[0]?.name} · {p().sub_style.name} · {stat(p())}
+        <Show when={props.selected}>
+          <span class="following">Following</span>
+        </Show>
       </span>
-    </div>
+    </Selectable>
+  );
+}
+
+function CoreOption(props: { option: IconOption; selected: boolean; onSelect: () => void }) {
+  return (
+    <Selectable selected={props.selected} onSelect={props.onSelect} label="core build" class="option">
+      <OptionBody option={props.option} arrows />
+      <Show when={props.selected}>
+        <span class="following">Following</span>
+      </Show>
+    </Selectable>
   );
 }
 
 function OptionRow(props: { option: IconOption; arrows?: boolean }) {
   return (
     <div class="option">
+      <OptionBody option={props.option} arrows={props.arrows} />
+    </div>
+  );
+}
+
+function OptionBody(props: { option: IconOption; arrows?: boolean }) {
+  return (
+    <>
       <span class="option-icons">
         <For each={props.option.icons}>
           {(icon, i) => (
@@ -397,7 +441,7 @@ function OptionRow(props: { option: IconOption; arrows?: boolean }) {
         </For>
       </span>
       <span class="muted small">{stat(props.option)}</span>
-    </div>
+    </>
   );
 }
 

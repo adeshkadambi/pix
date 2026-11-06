@@ -5,6 +5,8 @@ import { createSignal, onCleanup, type Accessor } from "solid-js";
 import type { ClientStatus } from "./types/ClientStatus";
 import type { Config } from "./types/Config";
 import type { DraftView } from "./types/DraftView";
+import type { LiveView } from "./types/LiveView";
+import type { OverlayMode } from "./types/OverlayMode";
 import type { ProfileView } from "./types/ProfileView";
 
 export interface EventMap {
@@ -12,6 +14,8 @@ export interface EventMap {
   "config-changed": Config;
   profile: ProfileView | null;
   draft: DraftView | null;
+  live: LiveView | null;
+  "overlay-mode": OverlayMode;
 }
 
 export function on<K extends keyof EventMap>(

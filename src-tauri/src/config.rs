@@ -42,6 +42,9 @@ pub struct Config {
     pub scoreboard_key: String,
     /// League install folder, used if Riot's install-settings file can't be read.
     pub install_path: Option<String>,
+    /// Tab panel position from calibration, per monitor resolution ("1920x1080" → offset from
+    /// the monitor's top-left, in physical pixels).
+    pub tabpanel_offsets: std::collections::BTreeMap<String, (i32, i32)>,
 }
 
 impl Default for Config {
@@ -50,6 +53,7 @@ impl Default for Config {
             flags: Flags::default(),
             scoreboard_key: "Tab".into(),
             install_path: None,
+            tabpanel_offsets: Default::default(),
         }
     }
 }

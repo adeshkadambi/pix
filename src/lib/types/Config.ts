@@ -9,4 +9,9 @@ scoreboard_key: string,
 /**
  * League install folder, used if Riot's install-settings file can't be read.
  */
-install_path: string | null, };
+install_path: string | null, 
+/**
+ * Tab panel position from calibration, per monitor resolution ("1920x1080" → offset from
+ * the monitor's top-left, in physical pixels).
+ */
+tabpanel_offsets: { [key in string]?: [number, number] }, };

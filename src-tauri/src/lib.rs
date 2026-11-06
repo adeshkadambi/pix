@@ -6,7 +6,9 @@ mod config;
 mod db;
 mod ddragon;
 mod events;
+mod game;
 mod lcu;
+mod live;
 mod lp;
 mod overlay;
 mod profile;
@@ -67,6 +69,32 @@ fn set_enemy_role(app: AppHandle, cell_id: i64, role: Option<builds::Role>) {
 #[tauri::command]
 fn set_my_role(app: AppHandle, role: builds::Role) {
     builds::draft::set_my_role(&app, role);
+}
+
+/// Which rune page (`kind` = "runes") or core set ("core") to follow in game.
+#[tauri::command]
+fn choose_build(app: AppHandle, kind: String, index: u32) {
+    builds::draft::choose(&app, &kind, index);
+}
+
+#[tauri::command]
+fn get_live(state: State<'_, AppState>) -> Option<live::view::LiveView> {
+    state.live.lock().unwrap().view.clone()
+}
+
+#[tauri::command]
+fn get_overlay_mode(app: AppHandle) -> overlay::OverlayMode {
+    overlay::mode(&app)
+}
+
+#[tauri::command]
+fn start_calibration(app: AppHandle) {
+    overlay::start_calibration(&app);
+}
+
+#[tauri::command]
+fn finish_calibration(app: AppHandle, save: bool) -> Result<(), String> {
+    overlay::finish_calibration(&app, save)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -131,7 +159,12 @@ pub fn run() {
             refresh_profile,
             get_draft,
             set_enemy_role,
-            set_my_role
+            set_my_role,
+            choose_build,
+            get_live,
+            get_overlay_mode,
+            start_calibration,
+            finish_calibration
         ])
         .run(tauri::generate_context!())
         .expect("error while running Pix");

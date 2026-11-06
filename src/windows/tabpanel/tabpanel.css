@@ -1,0 +1,79 @@
+/* Compact enemy-spells panel. Sized to fit the window in tauri.conf.json (120×214). */
+.tabpanel {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--overlay-panel);
+  border: 1px solid var(--overlay-border);
+  color: var(--text);
+  user-select: none;
+}
+.tabpanel--calibrating {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Calibration bar: drag handle, save, cancel */
+.tp-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  cursor: move;
+}
+.tp-grip {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+.tp-icon-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  color: var(--text);
+  font: 700 12px var(--font-body);
+  cursor: pointer;
+}
+.tp-icon-btn--save {
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* One row per enemy */
+.tp-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+}
+.tp-row--dead {
+  opacity: 0.55;
+}
+.tp-champ {
+  width: 24px;
+  height: 24px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--raised);
+  font-size: 8px;
+}
+.tp-spell {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-tile);
+  background: var(--raised);
+  font-size: 8px;
+}
+.tp-row--placeholder .tp-champ,
+.tp-row--placeholder .tp-spell {
+  display: inline-block;
+  opacity: 0.5;
+}

@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js";
 import { eventSignal } from "../../lib/events";
-import { getConfig, setFlag } from "../../lib/ipc";
+import { getConfig, setFlag, startCalibration } from "../../lib/ipc";
 import type { Flag } from "../../lib/types/Flag";
 
 type Risk = "gray" | "off-policy";
@@ -79,11 +79,21 @@ export function Settings() {
         </Show>
       </section>
       <section class="card stack">
-        <h2 class="card-title">Scoreboard key</h2>
+        <h2 class="card-title">Overlay</h2>
         <p class="muted">
-          The overlay panel shows while you hold <kbd>{config()?.scoreboard_key ?? "Tab"}</kbd> with
-          League in front. Changing it arrives with the overlay in M3.
+          With summoner timers on, the overlay panel shows while you hold <kbd>{config()?.scoreboard_key ?? "Tab"}</kbd>{" "}
+          with League in front, and the game keeps focus.
         </p>
+        <p class="muted">
+          Position the panel once next to the scoreboard's enemy rows; it's saved for your screen resolution. Doing this
+          during a game also checks your window mode: if you can see the "Pix overlay is visible" banner over the game,
+          overlays work for you.
+        </p>
+        <div>
+          <button type="button" class="btn" onClick={() => void startCalibration()}>
+            Position the tab panel
+          </button>
+        </div>
       </section>
     </div>
   );

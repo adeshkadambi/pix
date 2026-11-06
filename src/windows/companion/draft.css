@@ -231,6 +231,34 @@
   font-size: 15px;
 }
 
+/* Clickable options (what the Live screen follows) */
+.selectable {
+  width: 100%;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.selectable:hover {
+  background: var(--raised);
+}
+.selectable--on {
+  border-color: var(--accent);
+  background: var(--raised);
+}
+.following {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 /* Runes */
 .rune-option {
   display: flex;

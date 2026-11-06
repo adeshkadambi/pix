@@ -13,6 +13,8 @@ use crate::ddragon::DData;
 use crate::events::{self, ClientStatus};
 use crate::lcu::catalog::Catalog;
 use crate::lcu::http::LcuHttp;
+use crate::live::poller::LiveRuntime;
+use crate::overlay::SharedOverlay;
 use crate::profile::ProfileView;
 
 pub struct AppState {
@@ -34,6 +36,10 @@ pub struct AppState {
     pub patch: Mutex<Option<String>>,
     pub draft: Mutex<DraftRuntime>,
     pub builds: Arc<BuildService>,
+    pub live: Mutex<LiveRuntime>,
+    pub overlay: SharedOverlay,
+    /// League install folder of the connected client (holds `Config/game.cfg`).
+    pub install_dir: Mutex<Option<PathBuf>>,
 }
 
 impl AppState {
@@ -60,6 +66,9 @@ impl AppState {
             public_http,
             patch: Mutex::new(None),
             draft: Mutex::new(DraftRuntime::default()),
+            live: Mutex::new(LiveRuntime::default()),
+            overlay: SharedOverlay::default(),
+            install_dir: Mutex::new(None),
         }
     }
 

@@ -1,0 +1,151 @@
+/* Live screen, following design/Live.dc.html. */
+.live {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.live-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.live-me {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 320px;
+}
+.live-me-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  font-size: 13px;
+}
+.live-gold {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.live-gold-value {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+}
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  background: var(--bad-bg);
+  color: var(--accent-light);
+  font-size: 13px;
+  font-weight: 600;
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.live-clock {
+  font-family: var(--font-display);
+  color: var(--text);
+}
+.notice {
+  padding: 12px 14px;
+  border-radius: var(--r-small);
+  border: 1px solid var(--accent);
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.live-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.live-runes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+/* Build path steps */
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card-inner);
+}
+.step--next {
+  background: var(--raised);
+  outline: 1px solid var(--accent);
+}
+.step--owned .step-name {
+  color: var(--text-muted);
+}
+.step-n {
+  width: 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.step-name {
+  flex: 1;
+  font-weight: 500;
+}
+.step-tag {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  font-weight: 600;
+}
+.step-tag--owned {
+  background: var(--good-bg);
+  color: var(--good-text);
+}
+.step-tag--next {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.step-tag--later {
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Threats and purchases */
+.threat-row,
+.purchase {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.threat-name {
+  flex: 1;
+}
+.purchase-time {
+  width: 40px;
+  flex: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+}
+.purchase-champ {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 9px;
+}

@@ -32,6 +32,33 @@ pub struct DData {
     pub champions: HashMap<i32, ChampInfo>,
     /// Item id → name, tags, plain description and cost.
     pub items: HashMap<u32, ItemInfo>,
+    /// Summoner spell key ("SummonerFlash") → numeric id, name and base cooldown.
+    pub summoners: HashMap<String, SpellInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpellInfo {
+    pub id: i32,
+    pub name: String,
+    pub cooldown: f32,
+}
+
+fn summoners(summoner_json: &Value) -> HashMap<String, SpellInfo> {
+    let Some(data) = summoner_json.get("data").and_then(Value::as_object) else {
+        return HashMap::new();
+    };
+    data.iter()
+        .filter_map(|(key, s)| {
+            Some((
+                key.clone(),
+                SpellInfo {
+                    id: s.get("key")?.as_str()?.parse().ok()?,
+                    name: s.get("name")?.as_str()?.to_owned(),
+                    cooldown: s.pointer("/cooldown/0").and_then(Value::as_f64).unwrap_or(0.0) as f32,
+                },
+            ))
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -113,6 +140,11 @@ impl DData {
     pub fn cdn_url(&self, rest: &str) -> String {
         format!("{CDN}/cdn/{}/{rest}", self.version)
     }
+
+    /// Numeric champion key for a Data Dragon id ("MonkeyKing" → 62).
+    pub fn champion_key(&self, ddragon_id: &str) -> Option<i32> {
+        self.champions.iter().find(|(_, c)| c.id.eq_ignore_ascii_case(ddragon_id)).map(|(k, _)| *k)
+    }
 }
 
 /// "16.22.8348910+branch…" → "16.22".
@@ -185,16 +217,22 @@ pub async fn load(client: &reqwest::Client, root: &Path, patch: Option<&str>) ->
     }
     .ok_or(DDragonError::NoVersion)?;
     let dir: PathBuf = root.join(&version);
-    let (mut champion, mut item) = (Value::Null, Value::Null);
+    let (mut champion, mut item, mut summoner) = (Value::Null, Value::Null, Value::Null);
     for file in FILES {
         let v = cached_file(client, &dir, &version, file).await?;
         match file {
             "champion.json" => champion = v,
             "item.json" => item = v,
-            _ => {}
+            _ => summoner = v,
         }
     }
-    Ok(DData { champion_ids: champion_ids(&champion), champions: champions(&champion), items: items(&item), version })
+    Ok(DData {
+        champion_ids: champion_ids(&champion),
+        champions: champions(&champion),
+        items: items(&item),
+        summoners: summoners(&summoner),
+        version,
+    })
 }
 
 #[cfg(test)]
@@ -247,6 +285,16 @@ mod tests {
         assert!(morello.description.contains("40% Grievous Wounds"));
         assert!(!morello.description.contains('<'));
         assert!(!its[&3916].completed);
+    }
+
+    #[test]
+    fn parses_summoner_spells() {
+        let s = summoners(&serde_json::json!({"data": {
+            "SummonerFlash": {"id": "SummonerFlash", "key": "4", "name": "Flash", "cooldown": [300]},
+            "SummonerTeleport": {"id": "SummonerTeleport", "key": "12", "name": "Teleport", "cooldown": [360]}
+        }}));
+        assert_eq!(s["SummonerFlash"], SpellInfo { id: 4, name: "Flash".into(), cooldown: 300.0 });
+        assert_eq!(s["SummonerTeleport"].id, 12);
     }
 
     #[test]

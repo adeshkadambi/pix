@@ -4,6 +4,8 @@ import type { ClientStatus } from "./types/ClientStatus";
 import type { Config } from "./types/Config";
 import type { Flag } from "./types/Flag";
 import type { DraftView } from "./types/DraftView";
+import type { LiveView } from "./types/LiveView";
+import type { OverlayMode } from "./types/OverlayMode";
 import type { ProfileView } from "./types/ProfileView";
 import type { Role } from "./types/Role";
 
@@ -27,3 +29,17 @@ export const setEnemyRole = (cellId: number, role: Role | null) => invoke<void>(
 
 /** Your role in blind pick. */
 export const setMyRole = (role: Role) => invoke<void>("set_my_role", { role });
+
+/** Pick which rune page or core set to follow in game. */
+export const chooseBuild = (kind: "runes" | "core", index: number) => invoke<void>("choose_build", { kind, index });
+
+/** The current game's view, or null when no game is running. */
+export const getLive = () => invoke<LiveView | null>("get_live");
+
+export const getOverlayMode = () => invoke<OverlayMode>("get_overlay_mode");
+
+/** Show the tab panel (draggable) and the HUD test banner. */
+export const startCalibration = () => invoke<void>("start_calibration");
+
+/** End calibration; `save` stores the tab panel's position for this screen resolution. */
+export const finishCalibration = (save: boolean) => invoke<void>("finish_calibration", { save });

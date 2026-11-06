@@ -45,6 +45,10 @@ export function Companion() {
     if (d && view() === "profile") setView("draft");
   });
   onCleanup(() => void unlistenDraft.then((fn) => fn()));
+  const unlistenLive = on_("live", (v) => {
+    if (v && (view() === "profile" || view() === "draft")) setView("live");
+  });
+  onCleanup(() => void unlistenLive.then((fn) => fn()));
 
   // Follow the game phase, but only when it changes, so a manual tab choice sticks.
   createEffect(

@@ -165,9 +165,18 @@ pub struct SuggestionsView {
     pub note: Option<String>,
 }
 
+/// Which option you picked to follow in game (indexes into the build's rune pages and core sets).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+pub struct ChosenBuild {
+    pub runes: u32,
+    pub core: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export)]
 pub struct DraftView {
+    pub chosen: ChosenBuild,
     pub status: DraftStatus,
     pub message: Option<String>,
     pub my_role: Option<Role>,
@@ -192,6 +201,7 @@ pub struct DraftRuntime {
     pub my_role: Option<Role>,
     /// Debug fixture mode: treat the draft as Summoner's Rift.
     pub force_rift: bool,
+    pub chosen: ChosenBuild,
     generation: u64,
     last_key: String,
     pub view: Option<DraftView>,
@@ -334,6 +344,7 @@ fn teams_view(inputs: &Inputs, catalog: &Catalog) -> DraftView {
     let me = inputs.draft.me();
     let role_from_client = me.and_then(|m| m.role).is_some();
     DraftView {
+        chosen: ChosenBuild::default(),
         status: DraftStatus::Loading,
         message: None,
         my_role: me.and_then(|m| m.role).or(inputs.my_role_choice),
@@ -627,12 +638,32 @@ async fn suggestions(
     }
 }
 
-fn emit(app: &AppHandle, generation: u64, view: DraftView) {
+/// Picks which rune page or core set to follow in game. Re-emits the view without recomputing.
+pub fn choose(app: &AppHandle, kind: &str, index: u32) {
+    let state = app.state::<AppState>();
+    let mut rt = state.draft.lock().unwrap();
+    match kind {
+        "runes" => rt.chosen.runes = index,
+        "core" => rt.chosen.core = index,
+        _ => return,
+    }
+    let chosen = rt.chosen;
+    let Some(view) = rt.view.as_mut() else { return };
+    view.chosen = chosen;
+    let view = view.clone();
+    drop(rt);
+    if let Err(e) = app.emit(DRAFT_EVENT, &view) {
+        tracing::warn!("failed to emit {DRAFT_EVENT}: {e}");
+    }
+}
+
+fn emit(app: &AppHandle, generation: u64, mut view: DraftView) {
     let state = app.state::<AppState>();
     let mut rt = state.draft.lock().unwrap();
     if rt.generation != generation {
         return; // a newer draft state is being computed
     }
+    view.chosen = rt.chosen;
     rt.view = Some(view.clone());
     drop(rt);
     if let Err(e) = app.emit(DRAFT_EVENT, &view) {

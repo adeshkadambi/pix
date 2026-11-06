@@ -61,8 +61,11 @@ CI guard: the build fails if the source contains `OpenProcess|ReadProcessMemory|
 | `tabpanel` | Over the game, small, next to the scoreboard's enemy rows | Transparent, undecorated, topmost, non-activating, hidden by default | Enemy summoner spell buttons; shown and clickable **only while TAB is held** and League is in front |
 
 - Non-activating is enforced in `overlay/win32.rs` with `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` (plus Tauri's `focus: false`).
-- Calibration mode lets the user drag `tabpanel` into place once; the position is saved per resolution. The scoreboard key can be changed (default TAB) for people who rebind it.
-- The game must be in **Borderless or Windowed** mode. The app detects exclusive fullscreen (game window rect equals monitor rect and the overlay isn't visible) and shows a warning in `companion`.
+- Calibration mode (Settings → "Position the tab panel") shows `tabpanel` with a small drag bar (✓ save, ✕ cancel) and a "Pix overlay is visible" banner on `hud`. The position is saved per monitor resolution as an offset from the monitor's top-left. The scoreboard key can be changed (default TAB) for people who rebind it.
+- `tabpanel` is compact (120×214): one 30 px row per enemy, with a champion icon and two spell icons. There's no header.
+- The game must be in **Borderless or Windowed** mode. Tested in M3 on Windows 11: League's **Full Screen** hides topmost overlay windows, even with them shown. Overwolf apps (e.g. U.GG) draw inside the game process, which rules 1 and 4 forbid.
+  - Pix reads League's `Config/game.cfg` (`[General] WindowMode=`: 0 full screen, 1 windowed, 2 borderless). In Full Screen, the companion's Live screen shows a warning that suggests Borderless.
+  - Calibration during a game doubles as the visibility check.
 
 ## 5. Backend architecture
 ```
@@ -203,9 +206,9 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 - **Spell key:** `rawDisplayName` `GeneratedTip_SummonerSpell_<Key>_DisplayName` → `<Key>` (e.g. `SummonerFlash`) → Data Dragon `summoner.json` → `cooldown[0]` and icon.
 - **Haste:**
   - Items: strip HTML tags from the Data Dragon item `description`, then match `/(\d+)\s*Summoner Spell Haste/i`, summing over the enemy's current items. Never hardcode values.
-  - Cosmic Insight: it can't be detected for enemies, so each enemy gets a **manual toggle** (right-click portrait) that adds `+18`.
+  - Cosmic Insight: it can't be detected for enemies, so each enemy row in `tabpanel` has a **Cosmic Insight checkbox** that adds `+18`.
 - **Cooldown:** `cd = base / (1 + haste / 100)`. It's computed **at the moment of the click**, using the enemy's items at that time.
-- **Controls (in `tabpanel` while TAB is held):** left-click starts, right-click clears, mouse wheel adjusts ±5 s.
+- **Controls (in `tabpanel` while TAB is held):** click a spell to start its countdown; the icon fades and shows the time left. Click it again to clear it (for misclicks).
 - **Display:** `hud` shows running countdowns (display only, click-through).
 - **Special cases in `spells.rs`:** Teleport (cooldown changes with level and the Unleashed upgrade), Smite (charges; not tracked by default).
 
@@ -298,6 +301,9 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
 - **M2 Comp-aware builds:** champ-select parsing, OP.GG MCP client and notation parser, role inference, ranking, comp profile, cache, Draft view.
 - **M2.5 Suggested picks:** ranked champion suggestions before you lock in (5.13).
 - **M3 In-game shell:** live poller, companion in-game view (pre-game build, threat card, purchase feed), `hud`/`tabpanel` window styles, TAB watch, calibration, fullscreen warning.
+  - Draft options (rune page, core set) are clickable to choose what the Live screen follows.
+  - The tab watch runs only during a game with `overlay_timers` on, and is ignored while calibrating.
+  - Debug-only `PIX_LIVE_FIXTURE=<allgamedata.json>` replays a game snapshot.
 - **M4 Overlay features (gray, off by default):** gold diff, summoner timers with haste and Cosmic toggle.
 - **M5 Live advisor (off-policy, off by default) and post-game review.**
 - **M6 Compliance close-out:** Riot Developer Portal registration and disclosures. Turn on only approved gray features.

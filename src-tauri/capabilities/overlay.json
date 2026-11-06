@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "overlay",
-  "description": "Overlay windows: listen to backend events and call app commands only",
+  "description": "Overlay windows: listen to backend events, call app commands, and drag the tab panel during calibration",
   "windows": ["hud", "tabpanel"],
-  "permissions": ["core:event:default", "core:app:default"]
+  "permissions": ["core:event:default", "core:app:default", "core:window:allow-start-dragging"]
 }

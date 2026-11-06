@@ -15,7 +15,7 @@ use super::{discovery, ws};
 use crate::builds::draft;
 use crate::events::{ClientStatus, Phase};
 use crate::state::{AppState, update_client_status};
-use crate::{ddragon, profile, riot_tls};
+use crate::{ddragon, live, profile, riot_tls};
 
 const POLL: Duration = Duration::from_secs(2);
 const PHASE_URI: &str = "/lol-gameflow/v1/gameflow-phase";
@@ -57,6 +57,7 @@ async fn run_session(app: &AppHandle, http: &LcuHttp, lockfile: &Lockfile, lock_
     };
     tracing::info!("connected to League client on port {}", lockfile.port);
     *app.state::<AppState>().lcu.lock().unwrap() = Some(http.clone());
+    *app.state::<AppState>().install_dir.lock().unwrap() = lock_path.parent().map(Path::to_path_buf);
 
     let phase = http.get_json::<String>(PHASE_URI).await.map(|s| parse_phase(&s)).unwrap_or_default();
     update_client_status(app, |s| {
@@ -121,6 +122,13 @@ async fn on_phase_change(app: &AppHandle, http: &LcuHttp, old: Option<Phase>, ne
     };
     update_client_status(app, |s| s.summoners_rift = rift);
 
+    // Live game data while a game runs (SPEC §5.6).
+    if new == Phase::InProgress {
+        live::poller::start(app);
+    } else if old == Some(Phase::InProgress) {
+        live::poller::stop(app);
+    }
+
     // Draft pipeline: a fresh draft per champ select, seeded from the current session.
     if new == Phase::ChampSelect {
         draft::reset(app);
@@ -153,6 +161,7 @@ async fn on_phase_change(app: &AppHandle, http: &LcuHttp, old: Option<Phase>, ne
 
 async fn disconnected(app: &AppHandle) {
     tracing::info!("League client disconnected");
+    live::poller::stop(app);
     let state = app.state::<AppState>();
     *state.lcu.lock().unwrap() = None;
     *state.catalog.lock().await = None;
@@ -179,6 +188,10 @@ fn load_ddragon_for_client(app: &AppHandle, http: &LcuHttp) {
 /// the draft pipeline (treated as Summoner's Rift), to work on the Draft screen without a real draft.
 #[cfg(debug_assertions)]
 fn load_draft_fixture(app: &AppHandle) {
+    // `PIX_LIVE_FIXTURE=<allgamedata.json>` replays one Live Client snapshot as a running game.
+    if std::env::var("PIX_LIVE_FIXTURE").is_ok() {
+        live::poller::start(app);
+    }
     let Ok(path) = std::env::var("PIX_DRAFT_FIXTURE") else { return };
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
