@@ -2,7 +2,7 @@
 .draft {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
 /* Bans */
@@ -10,19 +10,19 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 .ban-list {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .ban-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px 3px 3px;
+  gap: 4px;
+  padding: 2px 7px 2px 2px;
   border-radius: var(--r-pill);
   border: 1px solid var(--border-strong);
   color: var(--text-muted);
@@ -42,7 +42,7 @@
 .draft-cols {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 14px;
   align-items: flex-start;
 }
 .team {
@@ -50,17 +50,17 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .team-title {
-  font-size: 15px;
-  margin-bottom: 4px;
+  font-size: 14px;
+  margin-bottom: 3px;
 }
 .pick {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 9px;
+  padding: 7px 9px;
   border-radius: var(--r-small);
   background: var(--card);
   border: 1px solid var(--border);
@@ -73,8 +73,8 @@
   border-color: var(--violet);
 }
 .pick-icon {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
   font-size: 12px;
 }
@@ -102,8 +102,8 @@
 .role-chip {
   display: inline-flex;
   align-items: baseline;
-  gap: 5px;
-  padding: 4px 9px;
+  gap: 4px;
+  padding: 3px 6px;
   border-radius: var(--r-pill);
   border: 1px solid var(--border-strong);
   background: transparent;
@@ -133,22 +133,22 @@
 .build-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 .build-head {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
+  gap: 9px;
 }
 .build-head-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .build-title {
-  font-size: 24px;
+  font-size: 22px;
 }
 .eyebrow--accent {
   color: var(--accent);
@@ -157,29 +157,29 @@
 }
 .build-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 .role-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .build-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 .panel {
   background: var(--card-inner);
   border-radius: var(--r-small);
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 .panel-title {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   font: 600 12px var(--font-body);
   color: var(--text-2);
   text-transform: uppercase;
@@ -191,32 +191,32 @@
 .option {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .option-icons {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .arrow {
   color: var(--text-muted);
 }
 .item-tile {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--r-tile);
   border: 1px solid var(--border-tile-strong);
   background: var(--tile);
   font-size: 10px;
 }
 .item-tile--small {
-  width: 28px;
-  height: 28px;
+  width: 25px;
+  height: 25px;
 }
 .inline-options {
   display: flex;
-  gap: 10px;
+  gap: 7px;
   flex-wrap: wrap;
 }
 .chip-option {
@@ -228,14 +228,14 @@
 .skill-order {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 /* Clickable options (what the Live screen follows) */
 .selectable {
   width: 100%;
   margin: 0;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
@@ -250,8 +250,8 @@
   background: var(--raised);
 }
 .following {
-  margin-left: 8px;
-  padding: 1px 7px;
+  margin-left: 6px;
+  padding: 1px 5px;
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--on-accent);
@@ -263,8 +263,8 @@
 .rune-option {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-bottom: 10px;
+  gap: 4px;
+  padding-bottom: 7px;
   border-bottom: 1px solid var(--border-strong);
 }
 .rune-option:last-child {
@@ -274,31 +274,31 @@
 .rune-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
 }
 .keystone {
-  width: 44px;
-  height: 44px;
+  width: 39px;
+  height: 39px;
   border-radius: 50%;
   border: 2px solid var(--accent);
   background: var(--tile);
   font-size: 10px;
 }
 .keystone--small {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-width: 1px;
   border-color: var(--border-tile-strong);
 }
 .rune-minor {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-wrap: wrap;
 }
 .rune-icon {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   background: var(--tile);
   font-size: 8px;
@@ -313,7 +313,7 @@
 .rune-sep {
   width: 1px;
   height: 18px;
-  margin: 0 3px;
+  margin: 0 2px;
   background: var(--border-strong);
 }
 
@@ -321,13 +321,13 @@
 .suggestions {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
-  gap: 10px;
+  gap: 7px;
 }
 .suggestion {
   display: flex;
-  gap: 12px;
+  gap: 9px;
   align-items: center;
-  padding: 12px;
+  padding: 9px;
   border-radius: var(--r-small);
   background: var(--card-inner);
   border: 1px solid transparent;
@@ -338,7 +338,7 @@
 .suggestion-head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
 }
 .suggestion-wr {
   font-family: var(--font-display);
@@ -346,7 +346,7 @@
   color: var(--accent-light);
 }
 .tag {
-  padding: 1px 7px;
+  padding: 1px 5px;
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--on-accent);
@@ -358,11 +358,11 @@
 .why {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 .why-row {
   display: flex;
-  gap: 12px;
+  gap: 9px;
   align-items: center;
 }
 .why-text {
@@ -374,23 +374,23 @@
 .threats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 10px;
+  gap: 7px;
 }
 .threat {
   display: flex;
-  gap: 10px;
+  gap: 7px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 6px 7px;
   border-radius: var(--r-small);
   background: var(--card-inner);
 }
 .threat-icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   font-size: 10px;
 }
 .threat-answers {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }

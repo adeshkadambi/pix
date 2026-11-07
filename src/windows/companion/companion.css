@@ -1,4 +1,6 @@
 .companion {
+  /* Compact: 13px body text in the app window (overlays keep their own sizes). */
+  font-size: 13px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -10,33 +12,33 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 28px;
+  gap: 12px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-header);
 }
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
 }
 .brand-name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 20px;
+  font-size: 18px;
   letter-spacing: -0.01em;
 }
 .tabs,
 .topbar-end {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 .topbar-end .status {
-  margin-right: 12px;
+  margin-right: 9px;
 }
 .tab {
-  padding: 8px 14px;
+  padding: 6px 10px;
   border: none;
   border-radius: var(--r-control);
   background: transparent;
@@ -56,9 +58,9 @@
 .status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 .status-dot {
   width: 8px;
@@ -80,30 +82,30 @@
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px;
+  padding: 20px;
 }
 .stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--r-card);
-  padding: 22px;
+  border-radius: var(--r-small);
+  padding: 16px;
 }
 .card-title {
-  font-size: 15px;
+  font-size: 14px;
 }
 .placeholder {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   max-width: 560px;
 }
 .placeholder h1 {
-  font-size: 22px;
+  font-size: 20px;
 }
 p {
   margin: 0;
@@ -117,13 +119,13 @@ p {
 }
 .legal {
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 12px;
 }
 .error {
   color: var(--bad-text);
 }
 kbd {
-  padding: 1px 6px;
+  padding: 1px 4px;
   border: 1px solid var(--border-tile);
   border-radius: 5px;
   color: var(--text);
@@ -135,8 +137,8 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 14px;
+  gap: 14px;
+  padding: 10px;
   border-radius: var(--r-small);
   background: var(--card-inner);
   cursor: pointer;
@@ -144,7 +146,7 @@ kbd {
 .flag-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .flag-name {
   font-weight: 600;
@@ -152,7 +154,7 @@ kbd {
 .risk {
   align-self: flex-start;
   margin-top: 2px;
-  padding: 3px 9px;
+  padding: 2px 6px;
   border-radius: var(--r-pill);
   font-size: 12px;
   font-weight: 600;
@@ -168,7 +170,7 @@ kbd {
   appearance: none;
   flex: none;
   position: relative;
-  width: 40px;
+  width: 35px;
   height: 22px;
   margin: 0;
   border-radius: var(--r-pill);
@@ -203,7 +205,7 @@ kbd {
 .update-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
   flex-wrap: wrap;
 }
 .btn--primary {
@@ -213,11 +215,22 @@ kbd {
   font-weight: 600;
 }
 .update-pill {
-  padding: 5px 11px;
+  padding: 4px 8px;
   border: none;
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--on-accent);
   font: 600 12px var(--font-body);
   cursor: pointer;
+}
+.stack-8 {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.update-notes {
+  margin: 0;
+  white-space: pre-wrap;
+  font: 12px/1.5 var(--font-body);
+  color: var(--text-2);
 }
