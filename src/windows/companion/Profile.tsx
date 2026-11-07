@@ -10,7 +10,8 @@ import type { RankedQueue } from "../../lib/types/RankedQueue";
 import { Placeholder } from "./Placeholder";
 import "./profile.css";
 
-const FORM_GAMES = 8;
+/** Recent form: about all the client keeps (it returns ~20 games however far back you ask). */
+const FORM_GAMES = 20;
 /** Ranked Solo and Ranked Flex: the queues that earn LP. */
 const RANKED_QUEUES = [420, 440];
 
@@ -47,6 +48,8 @@ function ProfileScreen(props: { profile: ProfileView; connected: boolean; onOpen
   const form = () => p().matches.slice(0, FORM_GAMES);
   const formWins = () => form().filter((m) => m.result === "Win").length;
   const formLosses = () => form().filter((m) => m.result === "Loss").length;
+  // Remakes don't count toward the win rate.
+  const formWr = () => winRate(formWins(), formWins() + formLosses());
 
   const refresh = async () => {
     setBusy(true);
@@ -86,7 +89,7 @@ function ProfileScreen(props: { profile: ProfileView; connected: boolean; onOpen
               <div class="form-head">
                 <span>Last {form().length} games</span>
                 <span class="form-record">
-                  {formWins()}W {formLosses()}L
+                  {formWins()}W {formLosses()}L · <span class="form-wr">{formWr()}</span>
                 </span>
               </div>
               <div class="form-bar" aria-hidden="true">

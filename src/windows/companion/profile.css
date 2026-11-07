@@ -2,7 +2,7 @@
 .profile {
   display: flex;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 17px;
   align-items: flex-start;
 }
 .profile-side {
@@ -10,19 +10,19 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 .profile-main {
   flex: 999 1 560px;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
 }
 .stack-12 {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
 }
 .strong {
   font-weight: 600;
@@ -31,7 +31,7 @@
   font-weight: 500;
 }
 .small-13 {
-  font-size: 13px;
+  font-size: 12px;
 }
 .eyebrow {
   color: var(--text-muted);
@@ -45,14 +45,14 @@
 .summoner {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 .summoner-icon {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: 2px solid var(--accent);
-  font-size: 14px;
+  font-size: 13px;
 }
 .summoner-text {
   display: flex;
@@ -62,7 +62,7 @@
 }
 .summoner-name {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -74,19 +74,19 @@
 .ranked-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 7px;
 }
 .ranked {
   background: var(--card-inner);
   border-radius: var(--r-small);
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .ranked-tier {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
 }
 .ranked-lp {
@@ -98,13 +98,13 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .form-head {
   display: flex;
   justify-content: space-between;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 .form-record {
   color: var(--text);
@@ -112,12 +112,18 @@
 }
 .form-bar {
   display: flex;
-  gap: 6px;
+  gap: 4px;
+}
+.form-bar {
+  gap: 3px;
 }
 .form-tick {
   flex: 1;
   height: 6px;
-  border-radius: 3px;
+  border-radius: 2px;
+}
+.form-wr {
+  color: var(--accent-light);
 }
 .form-tick--win {
   background: var(--good);
@@ -133,11 +139,11 @@
 .champ-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
 }
 .champ-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 1px solid var(--border-strong);
   font-size: 12px;
@@ -158,20 +164,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 9px;
   flex-wrap: wrap;
 }
 .history-head h1 {
-  font-size: 22px;
+  font-size: 20px;
 }
 .history-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
 }
 .btn {
-  height: 36px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 10px;
   border-radius: var(--r-control);
   border: 1px solid var(--border-strong);
   background: var(--card);
@@ -191,23 +197,23 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 8px 12px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 .match-meta {
   width: 112px;
   white-space: nowrap;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .result-line {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 .lp {
   font-size: 12px;
@@ -228,11 +234,11 @@
   font-size: 10px;
 }
 .history-note {
-  padding: 4px 2px 0;
+  padding: 3px 2px 0;
 }
 .result {
   align-self: flex-start;
-  padding: 3px 9px;
+  padding: 2px 6px;
   border-radius: var(--r-pill);
   font-size: 12px;
   font-weight: 600;
@@ -252,25 +258,25 @@
 .match-champ {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   width: 160px;
 }
 .match-champ-icon {
-  width: 44px;
-  height: 44px;
+  width: 39px;
+  height: 39px;
   border-radius: 50%;
   border: 1px solid var(--border-strong);
-  font-size: 13px;
+  font-size: 12px;
 }
 .match-champ-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 .spells {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 .spell-icon {
   width: 18px;
@@ -285,7 +291,7 @@
 }
 .kda {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 .match-cs {
@@ -293,15 +299,24 @@
   flex-direction: column;
   width: 96px;
 }
+/* Six items as a 3×2 grid, on the same row as the stats. */
 .match-items {
-  flex: 1 1 250px;
-  display: flex;
-  gap: 6px;
-  min-width: 0;
+  flex: none;
+  margin-left: auto;
+  display: grid;
+  grid-template-columns: repeat(3, 24px);
+  grid-auto-rows: 24px;
+  gap: 3px;
+}
+.match-items .item-slot {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  font-size: 9px;
 }
 .item-slot {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--r-tile);
   border: 1px solid var(--border-tile);
   background: var(--tile);
