@@ -11,6 +11,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
 use ts_rs::TS;
 
+use super::bans;
 use super::cache::{self, BuildCache};
 use super::comp_profile::{self, EnemyChampion, Pick};
 use super::opgg::OpggProvider;
@@ -152,6 +153,18 @@ pub struct SuggestionView {
     pub hovered: bool,
 }
 
+/// A suggested ban, with the numbers behind it.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+pub struct BanView {
+    pub champion: Icon,
+    pub win_rate: f32,
+    pub games: u32,
+    /// Ranked by its win rate against the champion you're hovering (else by role strength).
+    pub vs_you: bool,
+    pub reason: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export)]
 pub struct SuggestionsView {
@@ -162,6 +175,8 @@ pub struct SuggestionsView {
     pub yours: Vec<SuggestionView>,
     /// Best picks overall, best first.
     pub top: Vec<SuggestionView>,
+    /// Suggested bans for your role, best first. Not banned, picked or hovered by your team.
+    pub bans: Vec<BanView>,
     pub note: Option<String>,
 }
 
@@ -574,6 +589,7 @@ fn name_key(name: &str) -> String {
 }
 
 const TOP_SUGGESTIONS: usize = 5;
+const BAN_SUGGESTIONS: usize = 4;
 const YOUR_SUGGESTIONS: usize = 3;
 
 /// Suggested picks for your role (SPEC §5.13).
@@ -610,12 +626,20 @@ async fn suggestions(
         let key = opgg_key(dd, *champ)?;
         Some(async move { (*champ, service.synergies(patch, &key, *mate_role, role).await) })
     }));
+    // Champions that beat the one you're hovering, for ban suggestions.
+    let my_key = (hovered > 0).then(|| opgg_key(dd, hovered)).flatten();
+    let beats_me = async {
+        match &my_key {
+            Some(key) => service.counters_to(patch, key, role).await.ok(),
+            None => None,
+        }
+    };
     let pickable = async {
         let http = state.lcu_http()?;
         let ids: Vec<i32> = http.get_json("/lol-champ-select/v1/pickable-champion-ids").await.ok()?;
         (!ids.is_empty()).then(|| ids.into_iter().collect::<std::collections::HashSet<i32>>())
     };
-    let (meta, counters, synergies, pickable) = tokio::join!(meta, counters, synergies, pickable);
+    let (meta, counters, synergies, pickable, beats_me) = tokio::join!(meta, counters, synergies, pickable, beats_me);
     let mut note = None;
     let meta = meta.unwrap_or_else(|e| {
         tracing::warn!("lane meta unavailable: {e}");
@@ -628,6 +652,7 @@ async fn suggestions(
     });
 
     let by_name: HashMap<String, i32> = dd.champions.iter().map(|(id, c)| (name_key(&c.name), *id)).collect();
+    let bans = ban_suggestions(inputs, catalog, dd, role, &meta, beats_me.as_deref(), hovered, &by_name);
     let mut cands: HashMap<i32, Candidate> = HashMap::new();
     let entry = |cands: &mut HashMap<i32, Candidate>, id: i32| -> Option<()> {
         let c = dd.champions.get(&id)?;
@@ -693,8 +718,48 @@ async fn suggestions(
         opponent: opponent.map(|(_, champ, _)| catalog.champion(*champ)),
         yours: ranked.iter().filter(|s| s.mine.is_some()).take(YOUR_SUGGESTIONS).map(to_view).collect(),
         top: ranked.iter().filter(|s| s.mine.is_none()).take(TOP_SUGGESTIONS).map(to_view).collect(),
+        bans,
         note,
     }
+}
+
+/// Suggested bans: your role's tier list, ranked by how well each champion does against the one
+/// you're hovering (else by role strength). Skips champions already banned or picked, and any your
+/// team is hovering.
+#[allow(clippy::too_many_arguments)]
+fn ban_suggestions(
+    inputs: &Inputs,
+    catalog: &Catalog,
+    dd: &DData,
+    role: Role,
+    meta: &[MetaEntry],
+    beats_me: Option<&[ChampRecord]>,
+    hovered: i32,
+    by_name: &HashMap<String, i32>,
+) -> Vec<BanView> {
+    let d = &inputs.draft;
+    let mut taken: std::collections::HashSet<i32> = d.ally_bans.iter().chain(&d.enemy_bans).copied().collect();
+    taken.extend(d.allies.iter().chain(&d.enemies).map(|s| s.champion_id));
+    let mut cands: HashMap<i32, bans::BanCandidate> = HashMap::new();
+    for m in meta.iter().filter(|m| !m.rip && m.role_rate >= 0.15) {
+        if let Some(&id) = by_name.get(&name_key(&m.name))
+            && !taken.contains(&id)
+            && let Some(c) = dd.champions.get(&id)
+        {
+            cands.insert(id, bans::BanCandidate { champion_id: id, name: c.name.clone(), meta: Some((m.play, m.win, m.tier)), vs_you: None });
+        }
+    }
+    for r in beats_me.into_iter().flatten() {
+        if let Some(c) = cands.get_mut(&r.champion_id) {
+            c.vs_you = Some((r.play, r.win));
+        }
+    }
+    let mine = dd.champions.get(&hovered).map(|c| c.name.clone());
+    bans::rank(cands.into_values().collect(), mine.as_deref(), role.opgg())
+        .into_iter()
+        .take(BAN_SUGGESTIONS)
+        .map(|b| BanView { champion: catalog.champion(b.champion_id), win_rate: b.win_rate, games: b.games, vs_you: b.vs_you, reason: b.reason })
+        .collect()
 }
 
 /// Imports the `index`th rune page of the current build into the client (your click in Draft).

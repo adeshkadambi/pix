@@ -332,6 +332,9 @@
   background: var(--card-inner);
   border: 1px solid transparent;
 }
+.suggestion-wr--ban {
+  color: var(--bad-text);
+}
 .suggestion--hovered {
   border-color: var(--accent);
 }

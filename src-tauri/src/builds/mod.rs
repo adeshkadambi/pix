@@ -1,6 +1,7 @@
 //! Champion-select builds (SPEC §5.3–5.5): provider abstraction, ranking, enemy role inference,
 //! comp profile and the draft pipeline.
 
+pub mod bans;
 pub mod cache;
 pub mod comp_profile;
 pub mod draft;

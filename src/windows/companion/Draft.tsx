@@ -12,6 +12,7 @@ import type { Icon } from "../../lib/types/Icon";
 import type { IconOption } from "../../lib/types/IconOption";
 import type { Role } from "../../lib/types/Role";
 import type { RunePageView } from "../../lib/types/RunePageView";
+import type { BanView } from "../../lib/types/BanView";
 import type { SuggestionsView } from "../../lib/types/SuggestionsView";
 import type { SuggestionView } from "../../lib/types/SuggestionView";
 import { Placeholder } from "./Placeholder";
@@ -190,6 +191,14 @@ function Suggestions(props: { view: SuggestionsView }) {
           runes and builds.
         </span>
       </div>
+      <Show when={v().bans.length > 0}>
+        <div class="why">
+          <h3 class="panel-title">Suggested bans</h3>
+          <div class="suggestions">
+            <For each={v().bans}>{(b) => <BanCard b={b} />}</For>
+          </div>
+        </div>
+      </Show>
       <Show when={v().yours.length > 0}>
         <div class="why">
           <h3 class="panel-title">Your champions</h3>
@@ -205,6 +214,26 @@ function Suggestions(props: { view: SuggestionsView }) {
             <For each={v().top}>{(s) => <SuggestionCard s={s} />}</For>
           </div>
         </Show>
+      </div>
+    </div>
+  );
+}
+
+/** A ban suggestion: the champion, its win rate (against your hover, or in your role) and why. */
+function BanCard(props: { b: BanView }) {
+  const b = () => props.b;
+  return (
+    <div class="suggestion suggestion--ban">
+      <AssetIcon path={b().champion.icon} name={b().champion.name} class="pick-icon" decorative />
+      <div class="why-text">
+        <span class="suggestion-head">
+          <span class="strong">{b().champion.name}</span>
+          <span class="suggestion-wr suggestion-wr--ban">{(b().win_rate * 100).toFixed(1)}%</span>
+          <Show when={b().vs_you}>
+            <span class="tag">Counters you</span>
+          </Show>
+        </span>
+        <span class="muted small">{b().reason}</span>
       </div>
     </div>
   );

@@ -66,7 +66,7 @@ pub struct Suggestion {
     pub mine: Option<(u32, u32)>,
 }
 
-fn pct(win: u32, play: u32) -> String {
+pub fn pct(win: u32, play: u32) -> String {
     format!("{:.0}%", win as f32 / play.max(1) as f32 * 100.0)
 }
 
