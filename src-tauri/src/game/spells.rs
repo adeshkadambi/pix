@@ -2,12 +2,12 @@
 //!
 //! - Cooldown = base / (1 + haste / 100), worked out when you click, from the enemy's items at
 //!   that moment.
-//! - Haste comes from Data Dragon item descriptions ("N Summoner Spell Haste"), never hardcoded,
-//!   plus +18 when you tick Cosmic Insight for that enemy.
+//! - Haste comes from Data Dragon item descriptions ("N Summoner Spell Haste"), never hardcoded.
+//!   Cosmic Insight isn't counted: the Live Client API can't tell whether an enemy took it.
 //! - Timers run on game time, so pauses and lag don't break them.
 //! - Smite isn't tracked (charges).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use regex::Regex;
@@ -15,7 +15,6 @@ use regex::Regex;
 use crate::ddragon::{DData, SpellInfo};
 use crate::live::models::Item;
 
-pub const COSMIC_INSIGHT_HASTE: u32 = 18;
 const UNTRACKED: &[&str] = &["SummonerSmite"];
 
 /// Summoner spell haste from a set of items, read from their Data Dragon descriptions.
@@ -63,11 +62,10 @@ impl Timer {
     }
 }
 
-/// Running timers and Cosmic Insight ticks for one game, keyed by enemy champion (never player).
+/// Running timers for one game, keyed by enemy champion (never player).
 #[derive(Debug, Default)]
 pub struct TimerBook {
     timers: HashMap<(String, u8), Timer>,
-    cosmic: HashSet<String>,
 }
 
 impl TimerBook {
@@ -87,18 +85,6 @@ impl TimerBook {
     /// The timer if it's still counting down.
     pub fn running(&self, champion: &str, slot: u8, game_time: f64) -> Option<Timer> {
         self.timers.get(&(champion.to_owned(), slot)).copied().filter(|t| t.remaining(game_time) > 0.0)
-    }
-
-    pub fn set_cosmic(&mut self, champion: &str, on: bool) {
-        if on {
-            self.cosmic.insert(champion.to_owned());
-        } else {
-            self.cosmic.remove(champion);
-        }
-    }
-
-    pub fn cosmic(&self, champion: &str) -> bool {
-        self.cosmic.contains(champion)
     }
 
     /// Drops finished timers.
@@ -138,8 +124,8 @@ mod tests {
     #[test]
     fn cooldown_formula() {
         assert!((cooldown(300.0, 0) - 300.0).abs() < 1e-3);
-        // Lucidity boots + Cosmic Insight: 300 / 1.28.
-        assert!((cooldown(300.0, 10 + COSMIC_INSIGHT_HASTE) - 234.375).abs() < 1e-3);
+        // Lucidity boots: 300 / 1.10.
+        assert!((cooldown(300.0, 10) - 272.727).abs() < 1e-3);
     }
 
     #[test]
@@ -173,14 +159,5 @@ mod tests {
         assert!(book.toggle("Leona", 1, 300.0, 180.0), "a click after it finished starts a new one");
         book.prune(1000.0);
         assert!(book.running("Leona", 1, 300.0).is_none());
-    }
-
-    #[test]
-    fn cosmic_ticks() {
-        let mut book = TimerBook::default();
-        book.set_cosmic("Kaisa", true);
-        assert!(book.cosmic("Kaisa") && !book.cosmic("Viego"));
-        book.set_cosmic("Kaisa", false);
-        assert!(!book.cosmic("Kaisa"));
     }
 }

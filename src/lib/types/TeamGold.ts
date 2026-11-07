@@ -4,4 +4,9 @@ export type TeamGold = {
 /**
  * Item gold (full item prices), not total gold earned.
  */
-ally: number, enemy: number, };
+ally: number, enemy: number, 
+/**
+ * You're on the red team (CHAOS), the scoreboard's right side. Gold reads blue vs. red, left
+ * to right, to match the scoreboard.
+ */
+red_side: boolean, };

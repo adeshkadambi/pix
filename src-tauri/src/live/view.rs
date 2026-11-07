@@ -10,7 +10,7 @@ use crate::ddragon::DData;
 use crate::game::advisor::{self, EnemyState};
 use crate::game::gold;
 use crate::game::kills::{self, KillRecord};
-use crate::game::purchases::PurchaseFeed;
+use crate::game::purchases::{self, PurchaseFeed};
 use crate::game::spells::{self, TimerBook};
 use crate::lcu::catalog::{Catalog, Icon};
 use crate::live::models::{AllGameData, Player};
@@ -54,7 +54,7 @@ pub struct BuildStep {
 #[ts(export)]
 pub struct LiveBuild {
     /// Your pre-game build in order: core items, boots, then the top 4th/5th/6th options.
-    /// "Next" is simply the first item you don't own yet; it doesn't react to the game.
+    /// "Next" is the first step not yet filled; other boots and off-plan finished items fill steps.
     pub steps: Vec<BuildStep>,
     pub runes: Option<RunePageView>,
 }
@@ -87,7 +87,7 @@ pub struct SpellView {
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export)]
 pub struct LiveEnemy {
-    /// Data Dragon champion id: the key for timers and Cosmic Insight (never the player).
+    /// Data Dragon champion id: the key for timers (never the player).
     pub key: String,
     pub champion: Icon,
     pub level: u32,
@@ -95,17 +95,16 @@ pub struct LiveEnemy {
     /// "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY" or "".
     pub position: String,
     pub spells: Vec<SpellView>,
-    /// You ticked Cosmic Insight for this enemy.
-    pub cosmic: bool,
     pub haste: u32,
     /// Item gold of your player in the same scoreboard row and of this enemy (gold feature on).
     pub row_gold: Option<RowGold>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[ts(export)]
 pub struct RowGold {
-    /// Your player in the same scoreboard row.
+    /// Your player in the same scoreboard row: their champion and item gold.
+    pub ally: Icon,
     pub yours: u32,
     pub theirs: u32,
 }
@@ -116,6 +115,9 @@ pub struct TeamGold {
     /// Item gold (full item prices), not total gold earned.
     pub ally: u32,
     pub enemy: u32,
+    /// You're on the red team (CHAOS), the scoreboard's right side. Gold reads blue vs. red, left
+    /// to right, to match the scoreboard.
+    pub red_side: bool,
 }
 
 /// Which overlay features are on (SPEC §2).
@@ -176,13 +178,13 @@ fn champion_icon(p: &Player, catalog: &Catalog, dd: &DData) -> Icon {
     }
 }
 
-/// Summoner haste for an enemy right now: items plus Cosmic Insight if you ticked it.
-pub fn enemy_haste(p: &Player, timers: &TimerBook, dd: &DData) -> u32 {
-    spells::item_haste(&p.items, dd) + if timers.cosmic(p.ddragon_id()) { spells::COSMIC_INSIGHT_HASTE } else { 0 }
+/// Summoner haste for an enemy right now, from their items.
+pub fn enemy_haste(p: &Player, dd: &DData) -> u32 {
+    spells::item_haste(&p.items, dd)
 }
 
 fn spell_views(p: &Player, game_time: f64, timers: &TimerBook, catalog: &Catalog, dd: &DData) -> Vec<SpellView> {
-    let haste = enemy_haste(p, timers, dd);
+    let haste = enemy_haste(p, dd);
     [&p.summoner_spells.summoner_spell_one, &p.summoner_spells.summoner_spell_two]
         .iter()
         .enumerate()
@@ -206,27 +208,49 @@ fn spell_views(p: &Player, game_time: f64, timers: &TimerBook, catalog: &Catalog
 }
 
 /// Build steps from the draft's chosen options, marked against the items you own.
-fn steps(draft_build: &crate::builds::draft::BuildView, chosen_core: usize, owned: &[u32]) -> Vec<BuildStep> {
-    let mut items: Vec<Icon> = Vec::new();
+///
+/// You don't have to follow the plan exactly: any finished boots fill the boots step, and finished
+/// items outside the plan fill the earliest missing item steps (shown as what you bought), so
+/// "Next" keeps pace with how many items you actually have.
+fn steps(draft_build: &crate::builds::draft::BuildView, chosen_core: usize, owned: &[u32], catalog: &Catalog, dd: &DData) -> Vec<BuildStep> {
+    let mut planned: Vec<(Icon, bool)> = Vec::new();
     let core = draft_build.core.get(chosen_core).or(draft_build.core.first());
     let boots = draft_build.boots.first();
     let later = draft_build.later.iter().filter_map(|slot| slot.first());
-    for icon in core.into_iter().chain(boots).chain(later).flat_map(|o| o.icons.iter()) {
-        if !items.iter().any(|i| i.id == icon.id) {
-            items.push(icon.clone());
+    let groups = core.map(|o| (o, false)).into_iter().chain(boots.map(|o| (o, true))).chain(later.map(|o| (o, false)));
+    for (option, is_boots) in groups {
+        for icon in &option.icons {
+            if !planned.iter().any(|(i, _)| i.id == icon.id) {
+                planned.push((icon.clone(), is_boots));
+            }
         }
     }
+
+    let is_planned = |id: u32| planned.iter().any(|(i, _)| i.id as u32 == id);
+    let finished_boots = |id: u32| dd.items.get(&id).is_some_and(|it| it.completed && it.tags.iter().any(|t| t == "Boots") && it.gold_total > 300);
+    let mut my_boots = owned.iter().copied().find(|&id| finished_boots(id) && !is_planned(id));
+    let mut off_plan: std::collections::VecDeque<u32> = owned.iter().copied().filter(|&id| purchases::notable(id, dd) && !is_planned(id)).collect();
+
     let mut next_given = false;
-    items
+    planned
         .into_iter()
-        .map(|item| {
-            let state = if owned.contains(&(item.id as u32)) {
-                StepState::Owned
+        .map(|(item, is_boots)| {
+            let stand_in = if owned.contains(&(item.id as u32)) {
+                None
+            } else if is_boots {
+                my_boots.take()
+            } else {
+                off_plan.pop_front()
+            };
+            let (item, state) = if owned.contains(&(item.id as u32)) {
+                (item, StepState::Owned)
+            } else if let Some(id) = stand_in {
+                (catalog.item_icon(id as i32), StepState::Owned)
             } else if !next_given {
                 next_given = true;
-                StepState::Next
+                (item, StepState::Next)
             } else {
-                StepState::Later
+                (item, StepState::Later)
             };
             BuildStep { item, state }
         })
@@ -261,7 +285,7 @@ pub fn build_view(
         (true, Some((d, b))) => {
             let owned: Vec<u32> = me.map(|m| m.items.iter().map(|i| i.item_id).collect()).unwrap_or_default();
             let runes = b.runes.get(d.chosen.runes as usize).or(b.runes.first()).cloned();
-            (Some(LiveBuild { steps: steps(b, d.chosen.core as usize, &owned), runes }), None, b.threats.clone())
+            (Some(LiveBuild { steps: steps(b, d.chosen.core as usize, &owned, catalog, dd), runes }), None, b.threats.clone())
         }
     };
 
@@ -303,15 +327,18 @@ pub fn build_view(
                 dead: p.is_dead,
                 position: p.position.clone(),
                 spells: spell_views(p, game.game_data.game_time, timers, catalog, dd),
-                cosmic: timers.cosmic(p.ddragon_id()),
-                haste: enemy_haste(p, timers, dd),
-                row_gold: gold.as_ref().and_then(|g| g.rows.get(p.ddragon_id())).map(|&(yours, theirs)| RowGold { yours, theirs }),
+                haste: enemy_haste(p, dd),
+                row_gold: gold.as_ref().and_then(|g| g.rows.get(p.ddragon_id())).map(|(ally, yours, theirs)| RowGold {
+                    ally: game.allies().find(|a| a.ddragon_id() == ally).map(|a| champion_icon(a, catalog, dd)).unwrap_or_else(|| Icon { id: 0, name: ally.clone(), icon: String::new() }),
+                    yours: *yours,
+                    theirs: *theirs,
+                }),
             })
             .collect(),
         window_mode,
         advice: advisor_inputs.filter(|_| rift).map(|a| advice(game, &a, catalog, dd)),
         timers_enabled: features.timers,
-        team_gold: gold.as_ref().map(|g| TeamGold { ally: g.ally_total, enemy: g.enemy_total }),
+        team_gold: gold.as_ref().map(|g| TeamGold { ally: g.ally_total, enemy: g.enemy_total, red_side: me.is_some_and(|m| m.team == "CHAOS") }),
     }
 }
 
@@ -463,6 +490,29 @@ mod tests {
     }
 
     #[test]
+    fn other_boots_and_off_plan_items_fill_steps() {
+        let mut d = dd();
+        let info = |tags: &[&str], gold: u32, completed: bool| crate::ddragon::ItemInfo { name: String::new(), tags: tags.iter().map(|s| s.to_string()).collect(), description: String::new(), gold_total: gold, completed, on_rift: true };
+        d.items.insert(3020, info(&["Boots", "SpellDamage"], 1100, true)); // Sorcerer's Shoes
+        d.items.insert(1001, info(&["Boots"], 300, false)); // plain Boots
+        d.items.insert(3031, info(&["Damage", "CriticalStrike"], 3450, true)); // off-plan legendary
+        d.items.insert(1036, info(&["Damage"], 350, false)); // component
+        let b = draft(233).build.unwrap();
+        let state = |owned: &[u32]| steps(&b, 1, owned, &catalog(), &d).iter().map(|s| (s.item.id, s.state)).collect::<Vec<_>>();
+        // Plan: 3078, 3748, 3036, boots 3047, 3026.
+        assert_eq!(state(&[3078, 3020, 1036]), vec![
+            (3078, StepState::Owned),
+            (3748, StepState::Next),
+            (3036, StepState::Later),
+            (3020, StepState::Owned),
+            (3026, StepState::Later),
+        ], "other finished boots fill the boots step; components don't count");
+        assert_eq!(state(&[3078, 3031, 3036, 3020])[1], (3031, StepState::Owned), "an off-plan item fills the first missing step");
+        assert_eq!(state(&[3078, 3031, 3036, 3020])[4], (3026, StepState::Next));
+        assert_eq!(state(&[1001])[3], (3047, StepState::Later), "plain Boots don't fill the boots step");
+    }
+
+    #[test]
     fn no_build_for_another_champion_or_off_the_rift() {
         let v = build_view(&game(), Some(&draft(1)), &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &dd(), None, OverlayFeatures::default(), None);
         assert!(v.build.is_none());
@@ -477,23 +527,21 @@ mod tests {
     }
 
     #[test]
-    fn timers_and_cosmic_show_on_enemy_spells() {
+    fn timers_show_on_enemy_spells() {
         let mut timers = TimerBook::default();
         // Viego's Flash, clicked at 18:20 (1100 s) with no haste: 300 s.
         timers.toggle("Viego", 0, 1100.0, 300.0);
-        timers.set_cosmic("Viego", true);
         let v = build_view(&game(), None, &PurchaseFeed::default(), &timers, &catalog(), &dd(), None, OverlayFeatures::default(), None);
         let viego = v.enemies.iter().find(|e| e.key == "Viego").unwrap();
-        assert!(viego.cosmic);
-        assert_eq!(viego.haste, 18);
+        assert_eq!(viego.haste, 0);
         let flash = &viego.spells[0];
         assert_eq!(flash.remaining, Some(277.5), "fixture game time is 1122.5");
         assert_eq!(flash.duration, Some(300.0));
-        assert!((flash.cooldown - 300.0 / 1.18).abs() < 1e-3, "a new click would use the current haste");
+        assert!((flash.cooldown - 300.0).abs() < 1e-3, "a new click would use the current haste");
         let smite = &viego.spells[1];
         assert!(!smite.trackable && smite.remaining.is_none());
         let malphite = v.enemies.iter().find(|e| e.key == "Malphite").unwrap();
-        assert!(!malphite.cosmic && malphite.spells[0].remaining.is_none());
+        assert!(malphite.spells[0].remaining.is_none());
     }
 
     #[test]
@@ -507,7 +555,9 @@ mod tests {
         let on = build_view(&game(), None, &PurchaseFeed::default(), &TimerBook::default(), &catalog(), &d, None, OverlayFeatures { timers: true, gold: true }, None);
         assert!(on.timers_enabled && on.team_gold.is_some());
         let viego = on.enemies.iter().find(|e| e.key == "Viego").unwrap();
-        assert_eq!(viego.row_gold, Some(RowGold { yours: 8608, theirs: 3200 }), "Briar's items vs Viego's");
+        let row = viego.row_gold.as_ref().unwrap();
+        assert_eq!((row.ally.name.as_str(), row.yours, row.theirs), ("Briar", 8608, 3200), "Briar's items vs Viego's");
+        assert!(!on.team_gold.unwrap().red_side, "the fixture player is on ORDER (blue)");
     }
 
     #[test]

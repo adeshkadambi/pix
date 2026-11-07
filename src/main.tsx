@@ -10,7 +10,12 @@ import { TabPanel } from "./windows/tabpanel/TabPanel";
 const label = getCurrentWebviewWindow().label;
 document.documentElement.dataset.window = label;
 
-const views = { companion: Companion, hud: Hud, tabpanel: TabPanel } as const;
+// No right-click menu (Back / Reload / Inspect) on the in-game overlays.
+if (label === "hud" || label === "tabpanel") {
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+const views ={ companion: Companion, hud: Hud, tabpanel: TabPanel } as const;
 const View = views[label as keyof typeof views] ?? Companion;
 
 render(() => <View />, document.getElementById("root")!);

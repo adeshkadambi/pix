@@ -53,7 +53,7 @@
   gap: 4px;
   height: 30px;
 }
-.tp-row--dead .tp-champ {
+.tp-row--dead .tp-champ:not(.tp-champ--ally) {
   opacity: 0.45;
 }
 .tp-champ {
@@ -63,6 +63,15 @@
   border-radius: 50%;
   background: var(--raised);
   font-size: 8px;
+}
+/* Your player in the same scoreboard row (gold on): a bit smaller so the enemy stays the focus. */
+.tp-champ--ally {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+.tp-champ--empty {
+  opacity: 0.3;
 }
 .tp-spell {
   position: relative;
@@ -150,37 +159,8 @@
   color: var(--bad-text);
 }
 
-/* Cosmic Insight checkbox */
-.tp-ci {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-left: 2px;
-  border-radius: 5px;
-  border: 1px solid var(--border-tile);
-  color: var(--text-muted);
-  font: 700 8px var(--font-body);
-  cursor: pointer;
-}
-.tp-ci input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.tp-ci--on {
-  border-color: var(--violet);
-  background: var(--violet);
-  color: var(--on-accent);
-}
-.tp-ci:focus-within {
-  outline: 2px solid var(--accent);
-}
 .tp-row--placeholder .tp-champ,
-.tp-row--placeholder .tp-spell,
-.tp-row--placeholder .tp-ci {
+.tp-row--placeholder .tp-spell {
   display: inline-block;
   opacity: 0.5;
 }

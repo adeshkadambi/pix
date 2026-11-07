@@ -49,8 +49,6 @@ export const getReview = (gameId: number | null) => invoke<ReviewView | null>("g
 /** Start an enemy's summoner spell timer, or clear it if it's running. */
 export const toggleTimer = (champion: string, slot: number) => invoke<void>("toggle_timer", { champion, slot });
 
-/** Tick or untick Cosmic Insight for an enemy (+18 summoner spell haste). */
-export const setCosmic = (champion: string, on: boolean) => invoke<void>("set_cosmic", { champion, on });
 
 export const getOverlayMode = () => invoke<OverlayMode>("get_overlay_mode");
 

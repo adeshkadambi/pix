@@ -5,17 +5,13 @@ import type { SpellView } from "./SpellView";
 
 export type LiveEnemy = { 
 /**
- * Data Dragon champion id: the key for timers and Cosmic Insight (never the player).
+ * Data Dragon champion id: the key for timers (never the player).
  */
 key: string, champion: Icon, level: number, dead: boolean, 
 /**
  * "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY" or "".
  */
-position: string, spells: Array<SpellView>, 
-/**
- * You ticked Cosmic Insight for this enemy.
- */
-cosmic: boolean, haste: number, 
+position: string, spells: Array<SpellView>, haste: number, 
 /**
  * Item gold of your player in the same scoreboard row and of this enemy (gold feature on).
  */

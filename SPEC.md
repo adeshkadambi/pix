@@ -202,15 +202,16 @@ The draft pipeline takes the matchup `BuildSet` if one exists (lane opponent loc
 - **Item gold** = Σ Data Dragon `item[id].gold.total × count` per player. Components count at their own price, consumables are included, and trinkets count 0. Unspent gold isn't visible for other players.
 - **Rows pair by scoreboard position.** The Live Client lists each team in scoreboard order, so enemy row `i` compares with your team's row `i`: the two players side by side on the scoreboard. In ranked and draft games the scoreboard is sorted by role, so rows are lane matchups. Earlier versions inferred lanes from positions; that was replaced in M4.
 - **Display (compact, in the tab panel while Tab is held):**
-  - A thin team line: "Team 41.2K vs. 39.9K (+1.3K)", meaning all your items vs. all theirs.
-  - On each enemy row: "8.8K vs. 7.8K (+1.0K)", meaning your player in that scoreboard row vs. the enemy, then the difference (green when you're ahead, pink when behind). It shows "–" if your team has no player in that row. Showing both totals lets you compare value across lanes.
+  - Everything reads like the scoreboard: **blue team on the left, red on the right**, whichever side you are on. The difference in brackets is always yours minus theirs.
+  - A thin team line: "Team 41.2K vs. 39.9K (+1.3K)", meaning blue team items vs. red team items.
+  - On each enemy row: "[blue champion] 8.8K vs. 7.8K (+1.0K) [red champion]", meaning your player in that scoreboard row and the enemy, each icon on its own team's side, then the difference (green when you're ahead, pink when behind). It shows "–" if your team has no player in that row. Showing both totals lets you compare value across lanes.
   - Labeled as item gold, not total gold.
 
 ### 5.8 Summoner timers (overlay `tabpanel` + `hud`, flag `overlay_timers`, on by default)
 - **Spell key:** `rawDisplayName` `GeneratedTip_SummonerSpell_<Key>_DisplayName` → `<Key>` (e.g. `SummonerFlash`) → Data Dragon `summoner.json` → `cooldown[0]` and icon.
 - **Haste:**
   - Items: strip HTML tags from the Data Dragon item `description`, then match `/(\d+)\s*Summoner Spell Haste/i`, summing over the enemy's current items. Never hardcode values.
-  - Cosmic Insight: it can't be detected for enemies, so each enemy row in `tabpanel` has a **Cosmic Insight checkbox** that adds `+18`.
+  - Cosmic Insight isn't counted: it can't be detected for enemies, and a manual toggle was dropped because you can't tell either.
 - **Cooldown:** `cd = base / (1 + haste / 100)`. It's computed **at the moment of the click**, using the enemy's items at that time.
 - **Controls (in `tabpanel` while TAB is held):** click a spell to start its countdown; the icon fades and shows the time left. Click it again to clear it (for misclicks).
 - **Display:** `hud` shows running countdowns (display only, click-through).
@@ -274,6 +275,9 @@ In champ select, the Draft screen shows suggested picks until you lock in, then 
   - Plus +1% for filling a team gap (no AP, or no frontline, once 2+ teammates have locked).
   - Plus +0.5% for champions you've played recently.
 - **Display:** "Your champions" (up to 3) first, then "Top picks" (up to 5), each with win rate, game count and the reasons behind its rank. When the lane opponent isn't known yet, the card says the picks are ranked by role strength.
+- **Suggested bans** (`builds/bans.rs`, read-only; Pix never bans for you): up to 4 from your role's tier list, shown above the picks.
+  - Ranked by the champion's smoothed win rate against the champion you're hovering (same counters call, 30+ games). Otherwise by smoothed win rate in the role (100+ games), plus +0.5% per tier above tier 5. OP.GG has no ban rates.
+  - Skips champions already banned or picked, and any your team is hovering. Each shows its win rate, game count and reason (rule 7).
 
 ### 5.11 TAB watch and foreground
 - `tab_watch.rs` runs at about 60 Hz on a dedicated thread.
@@ -313,7 +317,7 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
   - Draft options (rune page, core set) are clickable to choose what the Live screen follows.
   - The tab watch runs only during a game with `overlay_timers` on, and is ignored while calibrating.
   - Debug-only `PIX_LIVE_FIXTURE=<allgamedata.json>` replays a game snapshot.
-- **M4 Overlay features (on by default):** gold diff, summoner timers with haste and the Cosmic Insight checkbox.
+- **M4 Overlay features (on by default):** gold diff, summoner timers with item haste.
 - **M5 Live advisor (off-policy, off by default) and post-game review**, with reviews saved per game.
 - **M6 Compliance close-out:** Riot Developer Portal registration and disclosures, including the overlay features that ship on by default.
 
@@ -333,7 +337,7 @@ Every window subscribes to backend events. There's no polling in JavaScript. All
 - **OP.GG arguments:** the endpoint is `mcp-api.op.gg/mcp` with full JSON-RPC, not `https://op.gg`. Arguments are `champion` (uppercase Data Dragon id), `position`, `game_mode`; there is no `champion_id`/`lane`. The analysis tool replies in class notation, not JSON.
 - **OP.GG timing:** "50 ms" is replaced by prefetch plus cache.
 - **Comp-aware data:** builds use the matchup tool and the comp profile; no source has full five-champion comp win rates.
-- **Live Client limits:** enemy full runes aren't available, so Cosmic Insight is a manual toggle. Items have no descriptions, so the haste regex runs on Data Dragon and the pattern changed.
+- **Live Client limits:** enemy full runes aren't available, so Cosmic Insight is ignored in timers. Items have no descriptions, so the haste regex runs on Data Dragon and the pattern changed.
 - **Windows and TLS:** the target is Windows only, with Borderless required. TLS is pinned to `riotgames.pem` rather than accepting any certificate. Process discovery is replaced with discovery from Riot's install-settings file.
 - **Layout:** the overlay only shows gold diff and timers. Purchase alerts moved to the companion feed. Click-through comes from TAB-gated panel visibility, not cursor hit-testing.
 - **Compliance:** the policy rules and feature classes in section 2 now apply.

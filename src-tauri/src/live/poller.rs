@@ -216,7 +216,7 @@ pub async fn toggle_timer(app: &AppHandle, champion: &str, slot: u8) -> Result<(
         };
         let key = spell.key().unwrap_or_default();
         let info = spells::spell_info(key, &dd).filter(|_| spells::trackable(key)).ok_or("this spell isn't timed")?;
-        let haste = view::enemy_haste(enemy, &rt.timers, &dd);
+        let haste = view::enemy_haste(enemy, &dd);
         let duration = spells::cooldown(info.cooldown, haste);
         rt.timers.toggle(champion, slot, game.game_data.game_time, duration);
     }
@@ -224,9 +224,3 @@ pub async fn toggle_timer(app: &AppHandle, champion: &str, slot: u8) -> Result<(
     Ok(())
 }
 
-pub async fn set_cosmic(app: &AppHandle, champion: &str, on: bool) -> Result<(), String> {
-    timers_enabled(app)?;
-    app.state::<AppState>().live.lock().unwrap().timers.set_cosmic(champion, on);
-    redraw(app).await;
-    Ok(())
-}

@@ -5,6 +5,6 @@ import type { RunePageView } from "./RunePageView";
 export type LiveBuild = { 
 /**
  * Your pre-game build in order: core items, boots, then the top 4th/5th/6th options.
- * "Next" is simply the first item you don't own yet; it doesn't react to the game.
+ * "Next" is the first step not yet filled; other boots and off-plan finished items fill steps.
  */
 steps: Array<BuildStep>, runes: RunePageView | null, };

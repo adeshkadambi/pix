@@ -107,12 +107,6 @@ async fn toggle_timer(app: AppHandle, champion: String, slot: u8) -> Result<(), 
     live::poller::toggle_timer(&app, &champion, slot).await
 }
 
-/// Ticks or unticks Cosmic Insight for an enemy (+18 summoner spell haste).
-#[tauri::command]
-async fn set_cosmic(app: AppHandle, champion: String, on: bool) -> Result<(), String> {
-    live::poller::set_cosmic(&app, &champion, on).await
-}
-
 /// A saved post-game review (`game_id`), or the latest one.
 #[tauri::command]
 fn get_review(app: AppHandle, game_id: Option<u64>) -> Option<game::review::ReviewView> {
@@ -211,7 +205,6 @@ pub fn run() {
             get_live,
             toggle_timer,
             get_review,
-            set_cosmic,
             get_overlay_mode,
             start_calibration,
             move_timers,
