@@ -27,10 +27,20 @@ pub struct KillRecord {
     pub killer_is_me: bool,
 }
 
+/// The player an event names. Events may use the full Riot ID ("Name#TAG") or just the game name
+/// ("Name"), so an exact match is tried first, then the part before '#'.
 fn find<'a>(game: &'a AllGameData, name: &str) -> Option<&'a Player> {
-    game.all_players
-        .iter()
-        .find(|p| (!p.riot_id.is_empty() && p.riot_id.eq_ignore_ascii_case(name)) || (!p.summoner_name.is_empty() && p.summoner_name.eq_ignore_ascii_case(name)))
+    let name = name.trim();
+    if name.is_empty() {
+        return None;
+    }
+    let exact = |p: &&Player| p.riot_id.eq_ignore_ascii_case(name) || p.summoner_name.eq_ignore_ascii_case(name);
+    let game_name = |s: &str| s.split('#').next().unwrap_or("").trim().to_owned();
+    let loose = |p: &&Player| {
+        let want = game_name(name);
+        [&p.riot_id, &p.summoner_name].iter().any(|s| !s.is_empty() && game_name(s).eq_ignore_ascii_case(&want))
+    };
+    game.all_players.iter().find(exact).or_else(|| game.all_players.iter().find(loose))
 }
 
 /// A readable name for a non-champion killer ("Turret_T2_C_05_A" → "Turret").
@@ -109,6 +119,16 @@ mod tests {
         assert_eq!(kills_on_me(&[k], "Syndra"), 0);
         // Other event types are ignored.
         assert!(record(g.events.events.iter().find(|e| e.name == "GameStart").unwrap(), &g).is_none());
+    }
+
+    #[test]
+    fn events_naming_players_without_the_tag() {
+        let g = game();
+        let e = Event { id: 7, name: "ChampionKill".into(), time: 400.0, killer: "Viego Player".into(), victim: "Tester".into(), assisters: vec!["Syndra Player".into()], ..Default::default() };
+        let k = record(&e, &g).expect("game names without #TAG still match");
+        assert_eq!(k.killer, Actor::Champion("Viego".into()));
+        assert!(k.victim_is_me);
+        assert_eq!(k.assisters, vec!["Syndra"]);
     }
 
     #[test]
