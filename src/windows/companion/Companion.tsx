@@ -50,7 +50,8 @@ export function Companion() {
   // Startup update check (Settings → Updates can turn it off).
   onMount(() => {
     void getConfig().then((c) => {
-      if (c.check_updates) void checkForUpdate();
+      // Dev builds call themselves v0.1.0, so every release would look newer.
+      if (c.check_updates && !import.meta.env.DEV) void checkForUpdate();
     });
   });
 

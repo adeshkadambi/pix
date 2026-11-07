@@ -15,6 +15,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history and tags, for release notes
 
       - name: Compliance check
         run: |
@@ -78,6 +80,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="build-${{ github.run_number }}"
+          # Release notes: the title of every commit since the previous release.
+          prev=$(git tag --list "build-*" --sort=-v:refname | head -1)
+          range=${prev:+$prev..}HEAD
+          { echo "## What's new"; echo; git log "$range" --no-merges --format="- %s"; } > notes.md
+          cat notes.md
           setup=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe)
           files=("$setup" src-tauri/target/release/pix.exe)
           # latest.json tells installed copies about this release (only when it's signed).
@@ -87,7 +94,7 @@ jobs:
               const [setup, tag, repo] = process.argv.slice(1);
               const latest = {
                 version: "0.1.${{ github.run_number }}",
-                notes: "Pix build ${{ github.run_number }}",
+                notes: fs.readFileSync("notes.md", "utf8").replace(/^## .*\n\n/, "").trim(),
                 pub_date: new Date().toISOString(),
                 platforms: { "windows-x86_64": {
                   signature: fs.readFileSync(setup + ".sig", "utf8").trim(),
@@ -99,6 +106,6 @@ jobs:
           fi
           gh release create "$tag" \
             --title "Pix build ${{ github.run_number }}" \
-            --notes "Automatic build of main at ${GITHUB_SHA::7}." \
+            --notes-file notes.md \
             --target "$GITHUB_SHA" \
             "${files[@]}"

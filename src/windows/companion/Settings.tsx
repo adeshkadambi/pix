@@ -120,9 +120,14 @@ function Updates(props: { checkOnStart: boolean }) {
         <Switch>
           <Match when={s().kind === "available" && s()}>
             {(a) => (
-              <button type="button" class="btn btn--primary" onClick={() => void installUpdate()}>
-                Install v{(a() as { version: string }).version} and restart
-              </button>
+              <div class="stack-8">
+                <button type="button" class="btn btn--primary" onClick={() => void installUpdate()}>
+                  Install v{(a() as { version: string }).version} and restart
+                </button>
+                <Show when={(a() as { notes?: string }).notes}>
+                  {(n) => <pre class="update-notes">{n()}</pre>}
+                </Show>
+              </div>
             )}
           </Match>
           <Match when={s().kind === "installing" && s()}>
