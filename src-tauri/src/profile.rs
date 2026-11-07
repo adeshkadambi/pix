@@ -356,12 +356,22 @@ pub async fn refresh(app: &AppHandle) -> Result<ProfileView, String> {
     Ok(view)
 }
 
-/// Refreshes in the background and logs failures.
+/// Refreshes in the background. Right after the client starts, some endpoints (match history)
+/// answer 400 for a while, so failures retry after 3, 6, 12 and 24 seconds.
 pub fn refresh_soon(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = refresh(&app).await {
-            tracing::warn!("profile refresh failed: {e}");
+        let mut wait = std::time::Duration::from_secs(3);
+        for attempt in 1..=5 {
+            match refresh(&app).await {
+                Ok(_) => return,
+                Err(e) if attempt < 5 => {
+                    tracing::warn!("profile refresh failed (attempt {attempt}), retrying in {wait:?}: {e}");
+                    tokio::time::sleep(wait).await;
+                    wait *= 2;
+                }
+                Err(e) => tracing::warn!("profile refresh failed, giving up: {e}"),
+            }
         }
     });
 }
